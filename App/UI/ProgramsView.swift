@@ -394,13 +394,17 @@ struct ExerciseEditor: View {
                     if fixedSets {
                         Text(Format.sets(draft.sets) + " по раундам")
                     } else {
-                        Stepper(Format.sets(draft.sets), value: $draft.sets, in: 1...20)
+                        Stepper("Подходы: \(draft.sets)", value: $draft.sets, in: 1...20)
                     }
-                    HStack {
-                        Text(draft.unit.label)
-                        Spacer()
-                        TextField("Цель", text: $target)
-                            .numericKeyboard().multilineTextAlignment(.trailing).frame(minWidth: 75).accessibilityLabel(draft.unit.label)
+                    if draft.unit == .repetitions {
+                        RepetitionField(text: $target)
+                    } else {
+                        HStack {
+                            Text(draft.unit.label)
+                            Spacer()
+                            TextField("Цель", text: $target)
+                                .numericKeyboard().multilineTextAlignment(.trailing).frame(minWidth: 75).accessibilityLabel(draft.unit.label)
+                        }
                     }
                     HStack {
                         Text("Вес, кг")
@@ -448,7 +452,7 @@ struct ExerciseEditor: View {
 
     private var kilograms: Double? { validWeight(weight) }
     private var validatedTarget: Int? {
-        guard let number = Int(target.trimmed), (1...3600).contains(number) else { return nil }
+        guard let number = Int(target.trimmed), exerciseQuantityRange.contains(number) else { return nil }
         return number
     }
 
@@ -467,15 +471,12 @@ struct ExerciseEditor: View {
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Удалить этап \(number)")
                     }
-                    HStack(spacing: 14) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Повторы").font(.caption).foregroundStyle(Ink.muted)
-                            TextField("10", text: $drop.repetitions).numericKeyboard().accessibilityLabel("Повторы, этап \(number)")
-                        }
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Вес, кг").font(.caption).foregroundStyle(Ink.muted)
-                            TextField("0", text: $drop.weight).numericKeyboard(decimal: true).accessibilityLabel("Вес, этап \(number)")
-                        }
+                    RepetitionField(text: $drop.repetitions, label: "Повторы, этап \(number)")
+                    HStack {
+                        Text("Вес, кг")
+                        Spacer()
+                        TextField("0", text: $drop.weight).numericKeyboard(decimal: true)
+                            .multilineTextAlignment(.trailing).frame(minWidth: 75).accessibilityLabel("Вес, этап \(number)")
                     }
                 }
             }
@@ -499,7 +500,7 @@ struct ExerciseEditor: View {
         var stages: [DropStagePlan] = []
         var previous = kilograms ?? 0
         for drop in drops {
-            guard let repetitions = Int(drop.repetitions.trimmed), (1...3600).contains(repetitions),
+            guard let repetitions = Int(drop.repetitions.trimmed), exerciseQuantityRange.contains(repetitions),
                   let weight = validWeight(drop.weight), weight < previous else { return nil }
             stages.append(DropStagePlan(repetitions: repetitions, weight: weight))
             previous = weight

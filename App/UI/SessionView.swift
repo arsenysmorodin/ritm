@@ -5,6 +5,7 @@ struct SessionView: View {
     let health: HealthConnection
     var onFinish: (WorkoutRecord) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var adding = false
     @State private var confirmDiscard = false
     @State private var confirmFinish = false
@@ -68,11 +69,12 @@ struct SessionView: View {
                     }
                 }
                 .sheet(item: $editing) { picked in
-                    SetEditor(selection: picked) { set in
+                    SetEditor(selection: picked) { value, weight in
                         store.updateWorkout { current in
                             guard let e = current.exercises.firstIndex(where: { $0.id == picked.exerciseID }),
-                                  let s = current.exercises[e].sets.firstIndex(where: { $0.id == set.id }) else { return }
-                            current.exercises[e].sets[s] = set
+                                  let s = current.exercises[e].sets.firstIndex(where: { $0.id == picked.id }) else { return }
+                            current.exercises[e].sets[s].value = value
+                            current.exercises[e].sets[s].weight = weight
                         }
                     }
                 }
@@ -181,41 +183,70 @@ struct SessionView: View {
     private func stepRow(_ step: WorkoutStep, grouped: Bool, next: Bool) -> some View {
         let set = step.set
         let quantity = "\(set.value) \(step.unit.short)"
-        let weight = set.weight > 0 ? " · \(Format.weight(set.weight)) кг" : ""
+        let weight = set.weight > 0 ? "\(Format.weight(set.weight)) кг" : ""
+        let summary = [quantity, weight].filter { !$0.isEmpty }.joined(separator: " · ")
+        let repetitions = step.unit == .repetitions
         let label = grouped && set.dropStage == nil ? step.name : step.title
-        return HStack(spacing: 8) {
+        let layout = repetitions && dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(spacing: 6))
+        return layout {
             Button {
                 editing = SetSelection(exerciseID: step.exerciseID, index: step.round, unit: step.unit, set: set)
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: 5) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(set.dropStage != nil && grouped ? step.name + " · " + label : label)
                             .font(.subheadline.weight(.medium)).foregroundStyle(set.dropStage != nil ? Ink.lilac : Ink.primary)
-                        Text(quantity + weight).font(.caption).foregroundStyle(Ink.muted)
+                        if !repetitions || !weight.isEmpty {
+                            Text(repetitions ? weight : summary).font(.caption).foregroundStyle(Ink.muted)
+                        }
                     }
-                    Spacer(minLength: 4)
+                    .fixedSize(horizontal: false, vertical: true)
                     Image(systemName: "pencil").font(.caption).foregroundStyle(Ink.muted)
                 }
                 .padding(.vertical, 5)
-                .frame(minHeight: 44)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             }
             .buttonStyle(PressStyle())
-            .accessibilityLabel("Изменить \(step.title.lowercased()), \(step.name), \(quantity)\(weight)")
-            Button {
-                store.toggleSet(exerciseID: step.exerciseID, setID: set.id)
-            } label: {
-                Image(systemName: set.complete ? "checkmark.circle.fill" : "circle")
-                    .font(.title2).foregroundStyle(set.complete ? Ink.peach : Ink.lilac)
-                    .frame(width: 44, height: 44)
+            .accessibilityLabel("Изменить \(step.title.lowercased()), \(step.name), \(summary)")
+            HStack(spacing: 6) {
+                if repetitions {
+                    RepetitionControl(value: set.value, context: "\(step.name), \(step.title.lowercased())") { change in
+                        adjustRepetitions(step, by: change)
+                    } count: {
+                        Text("\(set.value)")
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(Ink.primary)
+                            .frame(minWidth: 30)
+                            .accessibilityLabel(quantity)
+                    }
+                }
+                Button {
+                    store.toggleSet(exerciseID: step.exerciseID, setID: set.id)
+                } label: {
+                    Image(systemName: set.complete ? "checkmark.circle.fill" : "circle")
+                        .font(.title2).foregroundStyle(set.complete ? Ink.peach : Ink.lilac)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(PressStyle())
+                .accessibilityLabel((set.complete ? "Снять отметку, " : "Отметить ") + step.title.lowercased() + ", " + step.name)
+                .accessibilityHint(next ? "Следующий этап тренировки" : "")
             }
-            .buttonStyle(PressStyle())
-            .accessibilityLabel((set.complete ? "Снять отметку, " : "Отметить ") + step.title.lowercased() + ", " + step.name)
-            .accessibilityHint(next ? "Следующий этап тренировки" : "")
         }
         .padding(.leading, set.dropStage == nil ? 10 : 18)
         .background(Ink.raised, in: RoundedRectangle(cornerRadius: 10))
         .overlay {
-            if next { RoundedRectangle(cornerRadius: 10).strokeBorder(Ink.lilac.opacity(0.65), lineWidth: 1) }
+            if next { RoundedRectangle(cornerRadius: 10).strokeBorder(Ink.lilac.opacity(0.65), lineWidth: 1).allowsHitTesting(false) }
+        }
+    }
+
+    private func adjustRepetitions(_ step: WorkoutStep, by change: Int) {
+        store.updateWorkout { draft in
+            guard let exercise = draft.exercises.firstIndex(where: { $0.id == step.exerciseID }),
+                  let set = draft.exercises[exercise].sets.firstIndex(where: { $0.id == step.id }) else { return }
+            let value = draft.exercises[exercise].sets[set].value
+            let current = min(max(value, exerciseQuantityRange.lowerBound), exerciseQuantityRange.upperBound)
+            draft.exercises[exercise].sets[set].value = min(max(current + change, exerciseQuantityRange.lowerBound), exerciseQuantityRange.upperBound)
         }
     }
 
@@ -263,12 +294,12 @@ struct SetSelection: Identifiable {
 
 private struct SetEditor: View {
     let selection: SetSelection
-    let save: (LoggedSet) -> Void
+    let save: (Int, Double) -> Void
     @State private var value: String
     @State private var weight: String
     @Environment(\.dismiss) private var dismiss
 
-    init(selection: SetSelection, save: @escaping (LoggedSet) -> Void) {
+    init(selection: SetSelection, save: @escaping (Int, Double) -> Void) {
         self.selection = selection
         self.save = save
         _value = State(initialValue: String(selection.set.value))
@@ -278,7 +309,11 @@ private struct SetEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField(selection.unit.label, text: $value).numericKeyboard().accessibilityLabel(selection.unit.label)
+                if selection.unit == .repetitions {
+                    RepetitionField(text: $value)
+                } else {
+                    TextField(selection.unit.label, text: $value).numericKeyboard().accessibilityLabel(selection.unit.label)
+                }
                 TextField("Вес, кг", text: $weight).numericKeyboard(decimal: true).accessibilityLabel("Вес в килограммах")
             }
             .formTint()
@@ -288,12 +323,9 @@ private struct SetEditor: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Готово") {
                         guard let newValue = Int(value.trimmed), let newWeight = validWeight(weight) else { return }
-                        var set = selection.set
-                        set.value = newValue
-                        set.weight = newWeight
-                        save(set)
+                        save(newValue, newWeight)
                         dismiss()
-                    }.disabled(!(1...3600).contains(Int(value.trimmed) ?? 0) || validWeight(weight) == nil)
+                    }.disabled(!exerciseQuantityRange.contains(Int(value.trimmed) ?? 0) || validWeight(weight) == nil)
                 }
             }
         }

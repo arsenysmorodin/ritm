@@ -96,6 +96,68 @@ struct PressStyle: ButtonStyle {
     }
 }
 
+let exerciseQuantityRange = 1...3600
+
+struct RepetitionControl<Count: View>: View {
+    let value: Int?
+    let context: String
+    let adjust: (Int) -> Void
+    @ViewBuilder var count: Count
+
+    var body: some View {
+        HStack(spacing: 2) {
+            button("minus", label: "Убавить повтор", change: -1)
+                .disabled(value == exerciseQuantityRange.lowerBound)
+            count.monospacedDigit()
+            button("plus", label: "Добавить повтор", change: 1)
+                .disabled(value == exerciseQuantityRange.upperBound)
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .buttonRepeatBehavior(.enabled)
+    }
+
+    private func button(_ icon: String, label: String, change: Int) -> some View {
+        let atLimit = value == (change < 0 ? exerciseQuantityRange.lowerBound : exerciseQuantityRange.upperBound)
+        return Button { adjust(change) } label: {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(atLimit ? Ink.muted.opacity(0.5) : Ink.lilac)
+                .frame(width: 44, height: 44)
+                .background(Ink.lilac.opacity(atLimit ? 0.04 : 0.10), in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(PressStyle())
+        .accessibilityLabel("\(label), \(context)")
+    }
+}
+
+struct RepetitionField: View {
+    @Binding var text: String
+    var label = "Повторы"
+    @ScaledMetric(relativeTo: .body) private var fieldWidth = 50.0
+
+    var body: some View {
+        let value = Int(text.trimmed)
+        HStack {
+            Text("Повторы")
+            Spacer(minLength: 4)
+            RepetitionControl(value: value, context: label, adjust: adjust) {
+                TextField("—", text: $text)
+                    .numericKeyboard()
+                    .multilineTextAlignment(.center)
+                    .frame(width: fieldWidth)
+                    .accessibilityLabel(label)
+            }
+        }
+    }
+
+    private func adjust(by change: Int) {
+        let value = Int(text.trimmed) ?? 0
+        let (next, overflow) = value.addingReportingOverflow(change)
+        let bounded = overflow ? value : next
+        text = String(min(max(bounded, exerciseQuantityRange.lowerBound), exerciseQuantityRange.upperBound))
+    }
+}
+
 struct IconBadge: View {
     var icon: String
     var color = Ink.lilac
