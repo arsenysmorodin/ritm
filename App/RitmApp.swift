@@ -100,7 +100,11 @@ struct RootView: View {
         }
         .onOpenURL { url in
             guard url.scheme == "ritm" else { return }
-            if url.host == "history" { tab = .history }
+            if url.host == "history" {
+                showWorkout = false
+                historyRecord = nil
+                tab = .history
+            }
             if url.host == "today" {
                 tab = .today
                 if store.journal.activeWorkout != nil { showWorkout = true }
