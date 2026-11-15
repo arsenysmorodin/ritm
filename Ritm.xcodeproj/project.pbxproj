@@ -1,0 +1,285 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		DA7A00000000000000000017 /* RitmApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000001 /* RitmApp.swift */; };
+		DA7A00000000000000000018 /* HealthConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000002 /* HealthConnection.swift */; };
+		DA7A00000000000000000019 /* JournalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000003 /* JournalStore.swift */; };
+		DA7A0000000000000000001A /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000004 /* Models.swift */; };
+		DA7A0000000000000000001B /* HealthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000005 /* HealthView.swift */; };
+		DA7A0000000000000000001C /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000006 /* HistoryView.swift */; };
+		DA7A0000000000000000001D /* ProgramsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000007 /* ProgramsView.swift */; };
+		DA7A0000000000000000001E /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000008 /* SessionView.swift */; };
+		DA7A0000000000000000001F /* Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000009 /* Style.swift */; };
+		DA7A00000000000000000020 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A0000000000000000000A /* TodayView.swift */; };
+		DA7A00000000000000000022 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DA7A0000000000000000000B /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		DA7A00000000000000000001 /* RitmApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RitmApp.swift; sourceTree = "<group>"; };
+		DA7A00000000000000000002 /* HealthConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthConnection.swift; sourceTree = "<group>"; };
+		DA7A00000000000000000003 /* JournalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStore.swift; sourceTree = "<group>"; };
+		DA7A00000000000000000004 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		DA7A00000000000000000005 /* HealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthView.swift; sourceTree = "<group>"; };
+		DA7A00000000000000000006 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		DA7A00000000000000000007 /* ProgramsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramsView.swift; sourceTree = "<group>"; };
+		DA7A00000000000000000008 /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
+		DA7A00000000000000000009 /* Style.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Style.swift; sourceTree = "<group>"; };
+		DA7A0000000000000000000A /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		DA7A0000000000000000000B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DA7A0000000000000000000F /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
+		DA7A00000000000000000010 /* Health.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Health.xcconfig; sourceTree = "<group>"; };
+		DA7A00000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		DA7A00000000000000000012 /* Ritm.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Ritm.entitlements; sourceTree = "<group>"; };
+		DA7A00000000000000000014 /* Ritm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ritm.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DA7A00000000000000000024 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		DA7A0000000000000000000C /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				DA7A00000000000000000002 /* HealthConnection.swift */,
+				DA7A00000000000000000003 /* JournalStore.swift */,
+				DA7A00000000000000000004 /* Models.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		DA7A0000000000000000000D /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				DA7A00000000000000000005 /* HealthView.swift */,
+				DA7A00000000000000000006 /* HistoryView.swift */,
+				DA7A00000000000000000007 /* ProgramsView.swift */,
+				DA7A00000000000000000008 /* SessionView.swift */,
+				DA7A00000000000000000009 /* Style.swift */,
+				DA7A0000000000000000000A /* TodayView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		DA7A0000000000000000000E /* App */ = {
+			isa = PBXGroup;
+			children = (
+				DA7A00000000000000000001 /* RitmApp.swift */,
+				DA7A0000000000000000000C /* Core */,
+				DA7A0000000000000000000D /* UI */,
+				DA7A0000000000000000000B /* Assets.xcassets */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		DA7A00000000000000000013 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				DA7A0000000000000000000F /* App.xcconfig */,
+				DA7A00000000000000000010 /* Health.xcconfig */,
+				DA7A00000000000000000011 /* Info.plist */,
+				DA7A00000000000000000012 /* Ritm.entitlements */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		DA7A00000000000000000015 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DA7A00000000000000000014 /* Ritm.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DA7A00000000000000000016 /* Ritm */ = {
+			isa = PBXGroup;
+			children = (
+				DA7A0000000000000000000E /* App */,
+				DA7A00000000000000000013 /* Config */,
+				DA7A00000000000000000015 /* Products */,
+			);
+			name = Ritm;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		DA7A0000000000000000002C /* Ritm */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DA7A0000000000000000002B /* Build configuration list for PBXNativeTarget "Ritm" */;
+			buildPhases = (
+				DA7A00000000000000000021 /* Sources */,
+				DA7A00000000000000000024 /* Frameworks */,
+				DA7A00000000000000000023 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Ritm;
+			productName = Ritm;
+			productReference = DA7A00000000000000000014 /* Ritm.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DA7A0000000000000000002E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					DA7A0000000000000000002C = {
+						CreatedOnToolsVersion = 26.0;
+						SystemCapabilities = {
+							com.apple.HealthKit = {
+								enabled = 1;
+							};
+						};
+					};
+				};
+			};
+			buildConfigurationList = DA7A0000000000000000002D /* Build configuration list for PBXProject "Ritm" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = ru;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				ru,
+				Base,
+			);
+			mainGroup = DA7A00000000000000000016 /* Ritm */;
+			productRefGroup = DA7A00000000000000000015 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DA7A0000000000000000002C /* Ritm */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DA7A00000000000000000023 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA7A00000000000000000022 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DA7A00000000000000000021 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA7A00000000000000000017 /* RitmApp.swift in Sources */,
+				DA7A00000000000000000018 /* HealthConnection.swift in Sources */,
+				DA7A00000000000000000019 /* JournalStore.swift in Sources */,
+				DA7A0000000000000000001A /* Models.swift in Sources */,
+				DA7A0000000000000000001B /* HealthView.swift in Sources */,
+				DA7A0000000000000000001C /* HistoryView.swift in Sources */,
+				DA7A0000000000000000001D /* ProgramsView.swift in Sources */,
+				DA7A0000000000000000001E /* SessionView.swift in Sources */,
+				DA7A0000000000000000001F /* Style.swift in Sources */,
+				DA7A00000000000000000020 /* TodayView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		DA7A00000000000000000025 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		DA7A00000000000000000026 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DA7A00000000000000000010 /* Health.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		DA7A00000000000000000027 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		DA7A00000000000000000028 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DA7A00000000000000000010 /* Health.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		DA7A00000000000000000029 /* Offline Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = "Offline Debug";
+		};
+		DA7A0000000000000000002A /* Offline Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DA7A0000000000000000000F /* App.xcconfig */;
+			buildSettings = {
+			};
+			name = "Offline Debug";
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		DA7A0000000000000000002B /* Build configuration list for PBXNativeTarget "Ritm" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DA7A00000000000000000026 /* Debug */,
+				DA7A00000000000000000028 /* Release */,
+				DA7A0000000000000000002A /* Offline Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DA7A0000000000000000002D /* Build configuration list for PBXProject "Ritm" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DA7A00000000000000000025 /* Debug */,
+				DA7A00000000000000000027 /* Release */,
+				DA7A00000000000000000029 /* Offline Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = DA7A0000000000000000002E /* Project object */;
+}
