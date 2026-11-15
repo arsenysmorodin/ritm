@@ -41,7 +41,8 @@ struct ExerciseProgress: Identifiable {
             for exercise in record.exercises {
                 let plan = exercise.plan
                 let preset = ExerciseCatalog.find(plan)
-                let id = (preset?.id ?? "custom:\(ExerciseCatalog.normalize(plan.name))") + ":\(plan.unit.rawValue)"
+                let key = plan.isCustom == true ? "user:\(plan.id)" : preset?.id ?? "custom:\(ExerciseCatalog.normalize(plan.name))"
+                let id = key + ":\(plan.unit.rawValue)"
                 let sets = exercise.sets.filter(\.complete)
                 guard !sets.isEmpty else { continue }
                 if groups[id] == nil {
@@ -49,8 +50,8 @@ struct ExerciseProgress: Identifiable {
                 }
                 groups[id]?.name = plan.name
                 var point = session[id] ?? Point(id: record.id, date: record.startedAt, sets: 0, total: 0, bestWeight: 0, volume: 0)
+                point.sets += exercise.completedRounds
                 for set in sets {
-                    point.sets += 1
                     point.total += set.value
                     point.bestWeight = max(point.bestWeight, set.weight)
                     if plan.unit == .repetitions { point.volume += set.weight * Double(set.value) }

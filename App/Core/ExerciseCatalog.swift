@@ -1,30 +1,5 @@
 import Foundation
 
-enum Muscle: String, CaseIterable, Identifiable {
-    case chest, shoulders, biceps, triceps, forearms, abs, obliques
-    case upperBack, lats, lowerBack, glutes, quads, hamstrings, calves
-
-    var id: Self { self }
-    var title: String {
-        switch self {
-        case .chest: "Грудные"
-        case .shoulders: "Плечи"
-        case .biceps: "Бицепсы"
-        case .triceps: "Трицепсы"
-        case .forearms: "Предплечья"
-        case .abs: "Пресс"
-        case .obliques: "Косые мышцы живота"
-        case .upperBack: "Верх спины"
-        case .lats: "Широчайшие"
-        case .lowerBack: "Поясница"
-        case .glutes: "Ягодичные"
-        case .quads: "Передняя поверхность бедра"
-        case .hamstrings: "Задняя поверхность бедра"
-        case .calves: "Икры"
-        }
-    }
-}
-
 enum Equipment: String, CaseIterable, Identifiable {
     case body, dumbbells, band, bar, chair
     var id: Self { self }
@@ -98,7 +73,37 @@ enum ExerciseCatalog {
         .init("band-walk", "Шаги в сторону с резинкой", .band, [.glutes], [.quads], "Слегка согните ноги и делайте короткие шаги, сохраняя натяжение резинки.", target: 12),
         .init("band-pallof", "Жим Палофа", .band, [.obliques, .abs], [.shoulders], "Встаньте боком к креплению резинки. Выпрямляйте руки, удерживая корпус от поворота."),
         .init("pull-up", "Подтягивания", .bar, [.lats, .biceps], [.upperBack, .forearms], "Подтягивайтесь без раскачивания. Опускайтесь до удобного выпрямления рук.", target: 5),
-        .init("hang", "Вис на турнике", .bar, [.forearms], [.shoulders, .upperBack], "Держитесь за перекладину обеими руками, удерживая плечи в удобном положении.", target: 20, unit: .seconds)
+        .init("hang", "Вис на турнике", .bar, [.forearms], [.shoulders, .upperBack], "Держитесь за перекладину обеими руками, удерживая плечи в удобном положении.", target: 20, unit: .seconds),
+        .init("sumo-squat", "Приседания сумо", .body, [.quads, .glutes, .adductors], [.abs], "Поставьте стопы шире плеч и немного разверните носки. Опускайтесь между бёдер, направляя колени по линии стоп."),
+        .init("squat-jump", "Приседания с выпрыгиванием", .body, [.quads, .glutes, .calves], [.abs], "Из неглубокого приседа вытолкните себя вверх. Приземлитесь мягко и согните колени перед следующим повтором.", target: 6),
+        .init("forward-lunge", "Выпады вперёд", .body, [.quads, .glutes], [.hamstrings, .calves], "Шагните вперёд и опустите таз. Оттолкнитесь передней стопой и вернитесь. Повторы считайте на сторону."),
+        .init("lateral-lunge", "Боковые выпады", .body, [.quads, .glutes, .adductors], [.abs], "Шагните в сторону, отведите таз назад и согните опорную ногу. Вторая нога остаётся почти прямой.", target: 8),
+        .init("single-bridge", "Ягодичный мост на одной ноге", .body, [.glutes], [.hamstrings, .abs], "Оставьте одну стопу на полу, другую ногу вытяните. Поднимайте таз без перекоса. Повторы считайте на сторону.", target: 8),
+        .init("side-leg-raise", "Подъём ноги лёжа на боку", .body, [.glutes], [.obliques], "Лягте на бок, сложив бёдра одно над другим. Поднимайте верхнюю ногу, удерживая носок направленным вперёд.", target: 12),
+        .init("clamshell", "Ракушка лёжа на боку", .body, [.glutes], [.obliques], "Согните ноги и соедините стопы. Поднимайте верхнее колено, сохраняя таз неподвижным.", target: 12),
+        .init("donkey-kick", "Разгибание бедра на четвереньках", .body, [.glutes], [.hamstrings, .abs], "Поднимите согнутое колено назад до линии корпуса и медленно опустите. Держите таз ровно.", target: 12),
+        .init("knee-push-up", "Отжимания с колен", .body, [.chest, .triceps], [.shoulders, .abs], "Сохраняйте прямую линию от головы до колен. Опускайте грудь к полу и выжимайте себя вверх.", target: 8),
+        .init("close-push-up", "Отжимания узким хватом", .body, [.triceps, .chest], [.shoulders, .abs], "Поставьте ладони ближе друг к другу, чем в обычных отжиманиях, и направляйте локти назад вдоль корпуса.", target: 8),
+        .init("pike-push-up", "Отжимания уголком", .body, [.shoulders, .triceps], [.chest, .abs], "Начните из упора с высоко поднятым тазом. Сгибайте локти и опускайте макушку к полу впереди ладоней.", target: 6),
+        .init("high-plank", "Планка на прямых руках", .body, [.abs], [.shoulders, .obliques], "Разместите кисти под плечами. Удерживайте прямую линию от головы до пяток и дышите спокойно.", target: 30, unit: .seconds),
+        .init("shoulder-tap", "Касания плеч в планке", .body, [.abs, .obliques], [.shoulders], "Из упора на прямых руках коснитесь ладонью противоположного плеча. Поставьте стопы шире для устойчивости.", target: 10),
+        .init("crunch", "Скручивания лёжа", .body, [.abs], [], "На выдохе приподнимите лопатки, приблизив рёбра к тазу. Поясницу оставьте на полу, голову поддерживайте легко.", target: 12),
+        .init("reverse-crunch", "Обратные скручивания", .body, [.abs], [.obliques], "Поднимите согнутые ноги. Подкрутите таз и слегка оторвите его от пола, затем верните с контролем.", target: 12),
+        .init("hollow-hold", "Лодочка на спине", .body, [.abs], [.hipFlexors], "Прижмите поясницу к полу и приподнимите лопатки и ноги. Согните колени, если поясница начинает подниматься.", target: 20, unit: .seconds),
+        .init("bear-crawl", "Медвежья ходьба", .body, [.abs, .shoulders, .quads], [.obliques], "Приподнимите колени над полом и шагайте противоположными рукой и ногой. Сохраняйте корпус параллельно полу.", target: 20, unit: .seconds),
+        .init("high-knees", "Бег на месте с высоким коленом", .body, [.hipFlexors, .calves], [.quads, .abs], "Поочерёдно поднимайте колени, мягко ставя стопы под корпус. Начните с шага, если так удобнее.", target: 20, unit: .seconds),
+        .init("burpee", "Бёрпи без отжимания", .body, [.quads, .glutes, .shoulders], [.abs, .calves], "Поставьте руки на пол, уйдите ногами в планку, верните стопы и выпрямитесь. Ноги можно переносить шагом.", target: 6),
+        .init("child-pose", "Поза ребёнка", .body, [.lats, .lowerBack], [], "Из положения на четвереньках мягко отведите таз к пяткам и вытяните руки вперёд. Дышите спокойно.", target: 30, unit: .seconds),
+        .init("ankle-rock", "Колено к стене", .body, [.calves], [], "Поставьте стопу перед стеной. Направьте колено к стене по линии носка, удерживая пятку на полу.", target: 8),
+        .init("chair-squat", "Приседания до стула", .chair, [.quads, .glutes], [.abs], "Встаньте перед устойчивым стулом. Отведите таз до лёгкого касания сиденья и встаньте без раскачивания."),
+        .init("dumbbell-hammer-curl", "Молотковые сгибания", .dumbbells, [.biceps, .forearms], [], "Поднимайте гантели с ладонями, повёрнутыми друг к другу. Локти остаются рядом с корпусом.", target: 12),
+        .init("dumbbell-rear-fly", "Разведения гантелей в наклоне", .dumbbells, [.shoulders, .upperBack], [.lowerBack], "Наклонитесь за счёт движения таза. Разведите руки с мягкими локтями в стороны и опустите с контролем.", target: 12),
+        .init("dumbbell-pullover", "Пуловер с гантелью на полу", .dumbbells, [.lats, .chest], [.triceps], "Лягте на спину и держите одну гантель над грудью. Плавно заведите её за голову до удобной амплитуды."),
+        .init("dumbbell-single-rdl", "Румынская тяга на одной ноге", .dumbbells, [.hamstrings, .glutes], [.abs, .lowerBack], "Слегка согните опорное колено. Наклоняйтесь, отводя свободную ногу назад и удерживая таз параллельно полу.", target: 8),
+        .init("band-overhead-press", "Жим резинки над головой", .band, [.shoulders, .triceps], [.abs], "Наступите на резинку обеими стопами. Выжмите руки вверх от плеч, удерживая рёбра над тазом."),
+        .init("band-glute-bridge", "Ягодичный мост с резинкой", .band, [.glutes], [.hamstrings], "Разместите петлю выше колен. Поднимайте таз, сохраняя колени на ширине стоп.", target: 12),
+        .init("chin-up", "Подтягивания обратным хватом", .bar, [.lats, .biceps], [.upperBack, .forearms], "Возьмитесь за перекладину ладонями к себе. Согните локти, поднимитесь без раскачивания и опуститесь с контролем.", target: 5),
+        .init("scapular-pull-up", "Лопаточные подтягивания", .bar, [.upperBack, .lats], [.forearms], "Повисните на прямых руках. Опустите плечи и слегка поднимите корпус движением лопаток, сохраняя локти прямыми.", target: 8)
     ]
 
     private static let byID = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
@@ -109,7 +114,16 @@ enum ExerciseCatalog {
     }
 
     static func find(_ plan: ExercisePlan) -> ExercisePreset? {
+        guard plan.isCustom != true else { return nil }
         if let id = plan.catalogID, let preset = byID[id] { return preset }
         return byName[normalize(plan.name)]
+    }
+}
+
+extension ExercisePlan {
+    var muscles: MuscleSelection {
+        if let muscleOverride { return muscleOverride }
+        guard let preset = ExerciseCatalog.find(self) else { return MuscleSelection() }
+        return MuscleSelection(primary: preset.primary, secondary: preset.secondary)
     }
 }

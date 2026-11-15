@@ -58,27 +58,67 @@ struct ExerciseDetailView: View {
     var select: (() -> Void)? = nil
 
     var body: some View {
+        ExerciseGuide(name: entry.name, preset: entry,
+                      muscles: MuscleSelection(primary: entry.primary, secondary: entry.secondary), select: select)
+    }
+}
+
+struct ExercisePlanDetailView: View {
+    let plan: ExercisePlan
+
+    var body: some View {
+        ExerciseGuide(name: plan.name, preset: ExerciseCatalog.find(plan),
+                      muscles: plan.muscles, note: plan.techniqueNote)
+    }
+}
+
+private struct ExerciseGuide: View {
+    let name: String
+    let preset: ExercisePreset?
+    let muscles: MuscleSelection
+    var note: String? = nil
+    var select: (() -> Void)? = nil
+
+    var body: some View {
         Page {
-            PageHeader(title: entry.name, caption: entry.equipment.title) { EmptyView() }
-            Panel {
-                VStack(alignment: .leading, spacing: 14) {
-                    SectionHeading(title: "Какие мышцы работают")
-                    HStack(spacing: 12) {
-                        MuscleFigure(rear: false, primary: entry.primary, secondary: entry.secondary)
-                        MuscleFigure(rear: true, primary: entry.primary, secondary: entry.secondary)
+            PageHeader(title: name, caption: preset?.equipment.title ?? "Своё упражнение") { EmptyView() }
+            if let preset {
+                TechniqueCard(preset: preset)
+            }
+            if let note, !note.isEmpty {
+                Panel {
+                    VStack(alignment: .leading, spacing: 9) {
+                        SectionHeading(title: "Заметка о технике")
+                        Text(note).font(.subheadline).foregroundStyle(Ink.muted)
                     }
-                    keys("Основные", entry.primary, Ink.peach)
-                    if !entry.secondary.isEmpty { keys("Также работают", entry.secondary, Ink.lilac) }
                 }
             }
-            Panel {
-                VStack(alignment: .leading, spacing: 8) {
-                    SectionHeading(title: "Техника")
-                    Text(entry.hint).font(.subheadline).foregroundStyle(Ink.muted)
-                }
-            }
+            MuscleMap(muscles: muscles)
             if let select {
                 ActionButton(title: "Выбрать упражнение", icon: "plus", action: select)
+            }
+        }
+    }
+}
+
+struct MuscleMap: View {
+    let muscles: MuscleSelection
+    var title = "Какие мышцы работают"
+
+    var body: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeading(title: title)
+                if muscles.isEmpty {
+                    Text("Группы мышц ещё не указаны.").font(.subheadline).foregroundStyle(Ink.muted)
+                } else {
+                    HStack(spacing: 12) {
+                        MuscleFigure(rear: false, primary: muscles.primary, secondary: muscles.secondary)
+                        MuscleFigure(rear: true, primary: muscles.primary, secondary: muscles.secondary)
+                    }
+                    if !muscles.primary.isEmpty { keys("Основные", muscles.primary, Ink.peach) }
+                    if !muscles.secondary.isEmpty { keys("Также работают", muscles.secondary, Ink.lilac) }
+                }
             }
         }
     }
@@ -123,7 +163,9 @@ private struct MuscleFigure: View {
             (.biceps, [(68,47),(76,49),(80,60),(75,62),(70,56)]),
             (.abs, [(51,50),(57,51),(59,62),(55,74),(51,72)]),
             (.obliques, [(60,51),(66,48),(62,60),(63,69),(57,74),(60,62)]),
-            (.quads, [(54,82),(63,73),(67,82),(68,95),(65,108),(60,114),(55,102)]),
+            (.quads, [(57,85),(65,78),(67,85),(68,95),(65,108),(61,114),(58,100)]),
+            (.hipFlexors, [(53,74),(62,69),(66,74),(60,82),(54,83)]),
+            (.adductors, [(51,84),(55,84),(57,99),(59,110),(57,114),(54,101)]),
             (.calves, [(59,118),(65,116),(66,126),(63,136),(61,132)])
         ]
     }

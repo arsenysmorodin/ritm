@@ -99,7 +99,7 @@ enum JournalFile {
             guard let e = draft.exercises.firstIndex(where: { $0.id == exerciseID }),
                   let s = draft.exercises[e].sets.firstIndex(where: { $0.id == setID }) else { return }
             draft.exercises[e].sets[s].complete.toggle()
-            let rest = draft.exercises[e].plan.rest
+            let rest = draft.restAfter(setID: setID)
             if draft.exercises[e].sets[s].complete {
                 draft.restUntil = rest > 0 && draft.marked < draft.total ? date.addingTimeInterval(Double(rest)) : nil
             } else {
@@ -152,12 +152,11 @@ enum JournalFile {
 
     var watchSnapshot: WatchSnapshot? {
         guard let draft = journal.activeWorkout else { return nil }
-        let exercise = draft.exercises.first { $0.sets.contains { !$0.complete } }
-        let next = exercise.flatMap { exercise in
-            exercise.sets.first(where: { !$0.complete }).map { set in
-                WatchSnapshot.NextSet(exerciseID: exercise.id, setID: set.id,
-                                      label: "\(exercise.plan.name) · \(set.value) \(exercise.plan.unit.short)")
-            }
+        let next = draft.nextStep.map { step in
+            let kind = step.set.dropStage.map { " · Дроп \($0)" } ?? ""
+            let weight = step.set.weight > 0 ? " · \(step.set.weight.formatted(.number.precision(.fractionLength(0...2)))) кг" : ""
+            return WatchSnapshot.NextSet(exerciseID: step.exerciseID, setID: step.id,
+                                         label: "\(step.name) · \(step.set.value) \(step.unit.short)\(weight)\(kind)")
         }
         return WatchSnapshot(workoutID: draft.id, title: draft.name, kind: draft.kind.rawValue,
                              startedAt: draft.startedAt, completed: draft.marked, total: draft.total,

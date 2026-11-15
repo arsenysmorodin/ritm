@@ -10,6 +10,7 @@ struct SessionView: View {
     @State private var confirmFinish = false
     @State private var editing: SetSelection?
     @State private var remove: LoggedExercise?
+    @State private var guide: ExercisePlan?
     @State private var notes = ""
 
     var body: some View {
@@ -28,7 +29,14 @@ struct SessionView: View {
                     if draft.exercises.isEmpty {
                         HintPanel(icon: "dumbbell", title: "С чего начнём?", text: "Добавьте первое упражнение и отмечайте выполненные подходы.")
                     }
-                    ForEach(draft.exercises) { exercise in exercisePanel(exercise) }
+                    let next = draft.nextStep?.id
+                    ForEach(draft.sections) { section in
+                        if let block = section.block {
+                            blockPanel(section, block: block, next: next)
+                        } else if let exercise = section.exercises.first {
+                            exercisePanel(exercise, next: next)
+                        }
+                    }
                     ActionButton(title: "Добавить упражнение", icon: "plus", solid: false) { adding = true }
                     Panel {
                         VStack(alignment: .leading, spacing: 7) {
@@ -51,6 +59,12 @@ struct SessionView: View {
                 .sheet(isPresented: $adding) {
                     ExerciseEditor(initial: ExercisePlan(name: "")) { plan in
                         store.updateWorkout { $0.exercises.append(LoggedExercise(plan)) }
+                    }
+                }
+                .sheet(item: $guide) { plan in
+                    NavigationStack {
+                        ExercisePlanDetailView(plan: plan)
+                            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { guide = nil } } }
                     }
                 }
                 .sheet(item: $editing) { picked in
@@ -97,7 +111,8 @@ struct SessionView: View {
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text("Подходы").font(.caption).foregroundStyle(Ink.muted)
+                    let hasDrops = draft.exercises.contains { $0.plan.drops?.isEmpty == false }
+                    Text(hasDrops ? "Этапы" : "Подходы").font(.caption).foregroundStyle(Ink.muted)
                     Text("\(draft.marked) / \(draft.total)").font(.system(.title2, design: .rounded, weight: .semibold)).monospacedDigit()
                         .foregroundStyle(Ink.lilac)
                 }
@@ -105,55 +120,102 @@ struct SessionView: View {
         }
     }
 
-    private func exercisePanel(_ exercise: LoggedExercise) -> some View {
+    private func exercisePanel(_ exercise: LoggedExercise, next: UUID?) -> some View {
         Panel {
             VStack(alignment: .leading, spacing: 9) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(exercise.plan.name).font(.headline).accessibilityAddTraits(.isHeader)
-                        Text("\(exercise.plan.sets) × \(exercise.plan.target) \(exercise.plan.unit.short)").font(.caption).foregroundStyle(Ink.muted)
+                        Text("\(exercise.plan.sets) × \(exercise.plan.target) \(exercise.plan.unit.short)")
+                            .font(.caption).foregroundStyle(Ink.muted)
                     }
                     Spacer()
-                    Menu {
-                        Button("Добавить подход", systemImage: "plus") {
-                            store.updateWorkout { draft in
-                                guard let e = draft.exercises.firstIndex(where: { $0.id == exercise.id }) else { return }
-                                let last = draft.exercises[e].sets.last
-                                draft.exercises[e].sets.append(LoggedSet(value: last?.value ?? exercise.plan.target, weight: last?.weight ?? exercise.plan.weight))
-                            }
-                        }
-                        Button("Удалить упражнение", systemImage: "trash", role: .destructive) { remove = exercise }
-                    } label: {
-                        Image(systemName: "ellipsis").frame(width: 44, height: 44)
-                    }.accessibilityLabel("Действия: \(exercise.plan.name)")
+                    exerciseMenu(exercise)
                 }
-                ForEach(Array(exercise.sets.enumerated()), id: \.element.id) { index, set in
-                    HStack(spacing: 8) {
-                        Text("\(index + 1)").font(.system(.subheadline, design: .rounded, weight: .medium)).monospacedDigit()
-                            .frame(minWidth: 25).foregroundStyle(Ink.muted).accessibilityHidden(true)
-                        Button {
-                            editing = SetSelection(exerciseID: exercise.id, index: index + 1, unit: exercise.plan.unit, set: set)
-                        } label: {
-                            HStack {
-                                Text("\(set.value) \(exercise.plan.unit.short)")
-                                if set.weight > 0 { Text("\(Format.weight(set.weight)) кг").foregroundStyle(Ink.muted) }
-                                Spacer(minLength: 4)
-                                Image(systemName: "pencil").font(.caption).foregroundStyle(Ink.muted)
-                            }.font(.subheadline).frame(minHeight: 44)
-                        }.buttonStyle(PressStyle())
-                            .accessibilityLabel("Изменить подход \(index + 1): \(set.value) \(exercise.plan.unit.short)" + (set.weight > 0 ? ", \(Format.weight(set.weight)) кг" : ""))
-                        Button {
-                            store.toggleSet(exerciseID: exercise.id, setID: set.id)
-                        } label: {
-                            Image(systemName: set.complete ? "checkmark.circle.fill" : "circle")
-                                .font(.title2).foregroundStyle(set.complete ? Ink.peach : Ink.lilac)
-                                .frame(width: 44, height: 44)
-                        }.buttonStyle(PressStyle())
-                            .accessibilityLabel(set.complete ? "Снять отметку с подхода \(index + 1)" : "Отметить подход \(index + 1)")
-                    }
-                    .padding(.leading, 4).background(Ink.raised, in: RoundedRectangle(cornerRadius: 10))
+                ForEach(exercise.steps) { step in
+                    stepRow(step, grouped: false, next: next == step.id && exercise.plan.drops?.isEmpty == false)
                 }
             }
+        }
+    }
+
+    private func blockPanel(_ section: WorkoutSection, block: ExerciseBlock, next: UUID?) -> some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 11) {
+                HStack {
+                    Label(block.kind.title, systemImage: block.kind.icon).font(.headline).foregroundStyle(Ink.lilac)
+                    Spacer()
+                    Menu {
+                        ForEach(section.exercises) { exercise in
+                            Button(exercise.plan.name) { guide = exercise.plan }
+                        }
+                    } label: {
+                        Image(systemName: "figure.strengthtraining.traditional").frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel("Техника упражнений")
+                }
+                ForEach(section.rounds) { round in
+                    Text("Раунд \(round.id)").font(.caption.weight(.semibold)).foregroundStyle(Ink.muted)
+                    ForEach(round.steps) { step in stepRow(step, grouped: true, next: next == step.id) }
+                }
+            }
+        }
+    }
+
+    private func exerciseMenu(_ exercise: LoggedExercise) -> some View {
+        Menu {
+            Button("Мышцы и техника", systemImage: "figure.strengthtraining.traditional") { guide = exercise.plan }
+            Button("Добавить подход", systemImage: "plus") {
+                store.updateWorkout { draft in
+                    guard let index = draft.exercises.firstIndex(where: { $0.id == exercise.id }) else { return }
+                    draft.exercises[index].appendRound()
+                }
+            }
+            Button("Удалить упражнение", systemImage: "trash", role: .destructive) { remove = exercise }
+        } label: {
+            Image(systemName: "ellipsis").frame(width: 44, height: 44)
+        }
+        .accessibilityLabel("Действия: \(exercise.plan.name)")
+    }
+
+    private func stepRow(_ step: WorkoutStep, grouped: Bool, next: Bool) -> some View {
+        let set = step.set
+        let quantity = "\(set.value) \(step.unit.short)"
+        let weight = set.weight > 0 ? " · \(Format.weight(set.weight)) кг" : ""
+        let label = grouped && set.dropStage == nil ? step.name : step.title
+        return HStack(spacing: 8) {
+            Button {
+                editing = SetSelection(exerciseID: step.exerciseID, index: step.round, unit: step.unit, set: set)
+            } label: {
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(set.dropStage != nil && grouped ? step.name + " · " + label : label)
+                            .font(.subheadline.weight(.medium)).foregroundStyle(set.dropStage != nil ? Ink.lilac : Ink.primary)
+                        Text(quantity + weight).font(.caption).foregroundStyle(Ink.muted)
+                    }
+                    Spacer(minLength: 4)
+                    Image(systemName: "pencil").font(.caption).foregroundStyle(Ink.muted)
+                }
+                .padding(.vertical, 5)
+                .frame(minHeight: 44)
+            }
+            .buttonStyle(PressStyle())
+            .accessibilityLabel("Изменить \(step.title.lowercased()), \(step.name), \(quantity)\(weight)")
+            Button {
+                store.toggleSet(exerciseID: step.exerciseID, setID: set.id)
+            } label: {
+                Image(systemName: set.complete ? "checkmark.circle.fill" : "circle")
+                    .font(.title2).foregroundStyle(set.complete ? Ink.peach : Ink.lilac)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(PressStyle())
+            .accessibilityLabel((set.complete ? "Снять отметку, " : "Отметить ") + step.title.lowercased() + ", " + step.name)
+            .accessibilityHint(next ? "Следующий этап тренировки" : "")
+        }
+        .padding(.leading, set.dropStage == nil ? 10 : 18)
+        .background(Ink.raised, in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            if next { RoundedRectangle(cornerRadius: 10).strokeBorder(Ink.lilac.opacity(0.65), lineWidth: 1) }
         }
     }
 
@@ -220,7 +282,7 @@ private struct SetEditor: View {
                 TextField("Вес, кг", text: $weight).numericKeyboard(decimal: true).accessibilityLabel("Вес в килограммах")
             }
             .formTint()
-            .navigationTitle("Подход \(selection.index)")
+            .navigationTitle(selection.set.dropStage.map { "Дроп \($0)" } ?? "Подход \(selection.index)")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

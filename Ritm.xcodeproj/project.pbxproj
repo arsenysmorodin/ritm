@@ -19,8 +19,11 @@
 		DA7A00000000000000000020 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A0000000000000000000A /* TodayView.swift */; };
 		DA7A00000000000000000022 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DA7A0000000000000000000B /* Assets.xcassets */; };
 		B10000000000000000000001 /* ExerciseCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000001 /* ExerciseCatalog.swift */; };
+		B1000000000000000000000B /* ExerciseTechnique.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000B /* ExerciseTechnique.swift */; };
+		B10000000000000000000009 /* WorkoutFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000009 /* WorkoutFlow.swift */; };
 		B10000000000000000000002 /* Progress.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000002 /* Progress.swift */; };
 		B10000000000000000000003 /* ExerciseLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000003 /* ExerciseLibraryView.swift */; };
+		B1000000000000000000000A /* TechniqueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000A /* TechniqueView.swift */; };
 		B10000000000000000000004 /* ProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000004 /* ProgressView.swift */; };
 		B10000000000000000000005 /* Pulse.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000005 /* Pulse.swift */; };
 		B10000000000000000000006 /* PulsePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000006 /* PulsePanel.swift */; };
@@ -55,8 +58,11 @@
 		DA7A00000000000000000012 /* Ritm.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Ritm.entitlements; sourceTree = "<group>"; };
 		DA7A00000000000000000014 /* Ritm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ritm.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B00000000000000000000001 /* ExerciseCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseCatalog.swift; sourceTree = "<group>"; };
+		B0000000000000000000000B /* ExerciseTechnique.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseTechnique.swift; sourceTree = "<group>"; };
+		B00000000000000000000009 /* WorkoutFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutFlow.swift; sourceTree = "<group>"; };
 		B00000000000000000000002 /* Progress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Progress.swift; sourceTree = "<group>"; };
 		B00000000000000000000003 /* ExerciseLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseLibraryView.swift; sourceTree = "<group>"; };
+		B0000000000000000000000A /* TechniqueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TechniqueView.swift; sourceTree = "<group>"; };
 		B00000000000000000000004 /* ProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressView.swift; sourceTree = "<group>"; };
 		B00000000000000000000005 /* Pulse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pulse.swift; sourceTree = "<group>"; };
 		B00000000000000000000006 /* PulsePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PulsePanel.swift; sourceTree = "<group>"; };
@@ -97,6 +103,8 @@
 				B00000000000000000000005 /* Pulse.swift */,
 				B00000000000000000000002 /* Progress.swift */,
 				B00000000000000000000001 /* ExerciseCatalog.swift */,
+				B0000000000000000000000B /* ExerciseTechnique.swift */,
+				B00000000000000000000009 /* WorkoutFlow.swift */,
 				DA7A00000000000000000002 /* HealthConnection.swift */,
 				DA7A00000000000000000003 /* JournalStore.swift */,
 				DA7A00000000000000000004 /* Models.swift */,
@@ -110,6 +118,7 @@
 				B00000000000000000000006 /* PulsePanel.swift */,
 				B00000000000000000000004 /* ProgressView.swift */,
 				B00000000000000000000003 /* ExerciseLibraryView.swift */,
+				B0000000000000000000000A /* TechniqueView.swift */,
 				DA7A00000000000000000005 /* HealthView.swift */,
 				DA7A00000000000000000006 /* HistoryView.swift */,
 				DA7A00000000000000000007 /* ProgramsView.swift */,
@@ -265,8 +274,11 @@
 				B10000000000000000000005 /* Pulse.swift in Sources */,
 				B10000000000000000000004 /* ProgressView.swift in Sources */,
 				B10000000000000000000003 /* ExerciseLibraryView.swift in Sources */,
+				B1000000000000000000000A /* TechniqueView.swift in Sources */,
 				B10000000000000000000002 /* Progress.swift in Sources */,
 				B10000000000000000000001 /* ExerciseCatalog.swift in Sources */,
+				B1000000000000000000000B /* ExerciseTechnique.swift in Sources */,
+				B10000000000000000000009 /* WorkoutFlow.swift in Sources */,
 				DA7A00000000000000000017 /* RitmApp.swift in Sources */,
 				DA7A00000000000000000018 /* HealthConnection.swift in Sources */,
 				DA7A00000000000000000019 /* JournalStore.swift in Sources */,

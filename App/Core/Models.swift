@@ -24,6 +24,50 @@ enum Weekday: Int, Codable, CaseIterable, Identifiable {
     var short: String { ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][Self.allCases.firstIndex(of: self)!] }
 }
 
+enum Muscle: String, Codable, CaseIterable, Identifiable {
+    case chest, shoulders, biceps, triceps, forearms, abs, obliques
+    case upperBack, lats, lowerBack, glutes, quads, hamstrings, calves, adductors, hipFlexors
+
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .chest: "Грудные"
+        case .shoulders: "Плечи"
+        case .biceps: "Бицепсы"
+        case .triceps: "Трицепсы"
+        case .forearms: "Предплечья"
+        case .abs: "Пресс"
+        case .obliques: "Косые мышцы живота"
+        case .upperBack: "Верх спины"
+        case .lats: "Широчайшие"
+        case .lowerBack: "Поясница"
+        case .glutes: "Ягодичные"
+        case .quads: "Передняя поверхность бедра"
+        case .hamstrings: "Задняя поверхность бедра"
+        case .calves: "Икры"
+        case .adductors: "Внутренняя поверхность бедра"
+        case .hipFlexors: "Сгибатели бедра"
+        }
+    }
+}
+
+struct MuscleSelection: Codable, Equatable {
+    var primary: [Muscle] = []
+    var secondary: [Muscle] = []
+    var isEmpty: Bool { primary.isEmpty && secondary.isEmpty }
+
+    static func combined(_ selections: [Self]) -> Self {
+        let primary = Set(selections.flatMap(\.primary))
+        let secondary = Set(selections.flatMap(\.secondary)).subtracting(primary)
+        return Self(primary: Muscle.allCases.filter(primary.contains), secondary: Muscle.allCases.filter(secondary.contains))
+    }
+}
+
+struct DropStagePlan: Codable, Equatable {
+    var repetitions: Int
+    var weight: Double
+}
+
 struct ExercisePlan: Identifiable, Codable, Equatable {
     var id = UUID()
     var name: String
@@ -33,6 +77,41 @@ struct ExercisePlan: Identifiable, Codable, Equatable {
     var weight: Double = 0
     var rest = 60
     var catalogID: String?
+    var isCustom: Bool?
+    var muscleOverride: MuscleSelection?
+    var techniqueNote: String?
+    var drops: [DropStagePlan]?
+}
+
+enum ExerciseBlockKind: String, Codable, CaseIterable, Identifiable {
+    case superset, circuit
+    var id: Self { self }
+    var title: String { self == .superset ? "Суперсет" : "Круг" }
+    var icon: String { self == .superset ? "link" : "arrow.clockwise" }
+    var minimumExercises: Int { self == .superset ? 2 : 3 }
+    func accepts(_ count: Int) -> Bool { self == .superset ? count == 2 : count >= minimumExercises }
+}
+
+struct ExerciseBlock: Identifiable, Codable, Equatable {
+    var id = UUID()
+    var kind: ExerciseBlockKind
+    var exerciseIDs: [UUID]
+    var rest = 60
+}
+
+extension Array where Element == ExerciseBlock {
+    func available(for ids: [UUID]) -> [ExerciseBlock] {
+        var assigned: Set<UUID> = []
+        var result: [ExerciseBlock] = []
+        for var block in self {
+            let members = Set(block.exerciseIDs)
+            block.exerciseIDs = ids.filter { members.contains($0) && !assigned.contains($0) }
+            guard block.kind.accepts(block.exerciseIDs.count) else { continue }
+            assigned.formUnion(block.exerciseIDs)
+            result.append(block)
+        }
+        return result
+    }
 }
 
 struct Routine: Identifiable, Codable, Equatable {
@@ -41,6 +120,7 @@ struct Routine: Identifiable, Codable, Equatable {
     var kind: WorkoutKind = .strength
     var weekday: Weekday? = nil
     var exercises: [ExercisePlan] = []
+    var blocks: [ExerciseBlock]?
     var setCount: Int { exercises.reduce(0) { $0 + $1.sets } }
     static let quick = Routine(name: "Свободная тренировка")
 }
@@ -78,6 +158,8 @@ struct LoggedSet: Identifiable, Codable, Equatable {
     var value: Int
     var weight: Double
     var complete = false
+    var round: Int?
+    var dropStage: Int?
 }
 
 struct LoggedExercise: Identifiable, Codable, Equatable {
@@ -87,7 +169,18 @@ struct LoggedExercise: Identifiable, Codable, Equatable {
 
     init(_ plan: ExercisePlan) {
         self.plan = plan
-        self.sets = (0..<plan.sets).map { _ in LoggedSet(value: plan.target, weight: plan.weight) }
+        self.sets = (0..<max(0, plan.sets)).flatMap { offset in
+            let round = offset + 1
+            let first = LoggedSet(value: plan.target, weight: plan.weight, round: round)
+            let drops = (plan.drops ?? []).enumerated().map { index, stage in
+                LoggedSet(value: stage.repetitions, weight: stage.weight, round: round, dropStage: index + 1)
+            }
+            return [first] + drops
+        }
+    }
+
+    var completedRounds: Int {
+        Set(sets.enumerated().compactMap { index, set in set.complete ? set.round ?? index + 1 : nil }).count
     }
 }
 
@@ -100,6 +193,7 @@ struct ActiveWorkout: Identifiable, Codable, Equatable {
     var exercises: [LoggedExercise]
     var restUntil: Date? = nil
     var pulse: [PulsePoint]?
+    var blocks: [ExerciseBlock]?
     var notes = ""
 
     init(routine: Routine?, now: Date) {
@@ -109,6 +203,7 @@ struct ActiveWorkout: Identifiable, Codable, Equatable {
         kind = template.kind
         startedAt = now
         exercises = template.exercises.map(LoggedExercise.init)
+        blocks = template.blocks
     }
 
     var marked: Int { exercises.reduce(0) { $0 + $1.sets.filter(\.complete).count } }
@@ -129,11 +224,12 @@ struct WorkoutRecord: Identifiable, Codable, Equatable {
     var healthExportRequestedAt: Date?
     var pulse: [PulsePoint]?
     var fromWatch: Bool?
+    var blocks: [ExerciseBlock]?
 
     var awaitsHealthExport: Bool { !healthExported && healthExportRequestedAt != nil }
 
     var duration: Int { max(1, Int(endedAt.timeIntervalSince(startedAt))) }
-    var sets: Int { exercises.reduce(0) { $0 + $1.sets.count } }
+    var sets: Int { exercises.reduce(0) { $0 + $1.completedRounds } }
 
     init(_ draft: ActiveWorkout, endedAt: Date) {
         id = draft.id
@@ -149,6 +245,7 @@ struct WorkoutRecord: Identifiable, Codable, Equatable {
         }
         notes = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         pulse = draft.pulse
+        blocks = draft.blocks?.available(for: draft.exercises.map(\.plan.id))
     }
 }
 

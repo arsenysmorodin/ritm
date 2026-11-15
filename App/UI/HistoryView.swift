@@ -49,10 +49,17 @@ struct HistoryView: View {
                             ForEach(record.exercises) { exercise in
                                 Panel {
                                     VStack(alignment: .leading, spacing: 7) {
-                                        Text(exercise.plan.name).font(.headline)
-                                        ForEach(Array(exercise.sets.enumerated()), id: \.element.id) { index, set in
+                                        NavigationLink(exercise.plan.name) { ExercisePlanDetailView(plan: exercise.plan) }
+                                            .font(.headline)
+                                        if let block = record.blocks?.first(where: { $0.exerciseIDs.contains(exercise.plan.id) }) {
+                                            Label(block.kind.title, systemImage: block.kind.icon)
+                                                .font(.caption).foregroundStyle(Ink.lilac)
+                                        }
+                                        ForEach(exercise.steps) { step in
+                                            let set = step.set
                                             HStack {
-                                                Text("Подход \(index + 1)").foregroundStyle(Ink.muted)
+                                                Text(set.dropStage.map { "Подход \(step.round) · дроп \($0)" } ?? step.title)
+                                                    .foregroundStyle(Ink.muted)
                                                 Spacer()
                                                 Text("\(set.value) \(exercise.plan.unit.short)" + (set.weight > 0 ? " • \(Format.weight(set.weight)) кг" : ""))
                                             }.font(.subheadline)
@@ -60,6 +67,9 @@ struct HistoryView: View {
                                     }
                                 }
                             }
+                        }
+                        if !record.exercises.isEmpty {
+                            MuscleMap(muscles: .combined(record.exercises.map(\.plan.muscles)), title: "Мышцы тренировки")
                         }
                         if !record.notes.isEmpty {
                             VStack(alignment: .leading, spacing: 9) {
