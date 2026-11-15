@@ -29,6 +29,11 @@ struct HealthView: View {
                             ActionButton(title: "Как изменить разрешения", icon: "gearshape", solid: false) {
                                 showPermissions = true
                             }
+                            if health.additionalPermissionsPending {
+                                ActionButton(title: "Разрешить вес и пульс", icon: "heart.text.square", solid: false) {
+                                    Task { await health.connect(store) }
+                                }.disabled(health.isBusy)
+                            }
                             Button("Отключить обмен") { health.disconnect(store) }
                                 .font(.subheadline).frame(minHeight: 44).disabled(health.isBusy)
                         } else {
@@ -57,7 +62,7 @@ struct HealthView: View {
         .alert("Разрешения «Здоровья»", isPresented: $showPermissions) {
             Button("Понятно", role: .cancel) {}
         } message: {
-            Text("Откройте приложение Apple «Здоровье», нажмите на фото профиля и в разделе «Конфиденциальность» выберите «Приложения» → «Ритм». Там можно изменить доступ к шагам, активной энергии и записи тренировок.")
+            Text("Откройте приложение Apple «Здоровье», нажмите на фото профиля и в разделе «Конфиденциальность» выберите «Приложения» → «Ритм». Там можно изменить доступ к шагам, активной энергии, весу тела, пульсу и записи тренировок.")
         }
     }
 

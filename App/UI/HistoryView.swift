@@ -5,12 +5,14 @@ struct HistoryView: View {
     let store: JournalStore
     let health: HealthConnection
     @Binding var selected: UUID?
+    @State private var showProgress = false
     @State private var deleting: WorkoutRecord?
 
     var body: some View {
         let records = store.journal.records
         Page {
             PageHeader(title: "История", caption: "Завершённые тренировки") { IconBadge(icon: "calendar") }
+            ActionButton(title: "Прогресс", icon: "chart.line.uptrend.xyaxis", solid: false) { showProgress = true }
             if records.isEmpty {
                 HintPanel(icon: "list.bullet.rectangle", title: "Здесь появится первая запись", text: "Завершите тренировку, чтобы сохранить время, подходы и заметки.")
             } else {
@@ -23,6 +25,7 @@ struct HistoryView: View {
                 }
             }
         }
+        .sheet(isPresented: $showProgress) { NavigationStack { TrainingProgressView(store: store, health: health) } }
         .sheet(isPresented: Binding(get: { selected != nil }, set: { if !$0 { selected = nil } })) {
             if let record = store.journal.records.first(where: { $0.id == selected }) {
                 NavigationStack {
@@ -36,8 +39,13 @@ struct HistoryView: View {
                                 Label(Format.sets(record.sets), systemImage: "checkmark.circle")
                             }.font(.subheadline)
                         }
+                        if let pulse = record.pulse { PulsePanel(points: pulse) }
                         VStack(alignment: .leading, spacing: 9) {
-                            SectionHeading(title: "Выполнено")
+                            if record.fromWatch == true {
+                                Label("Записано на Apple Watch", systemImage: "applewatch")
+                                    .font(.subheadline).foregroundStyle(Ink.lilac)
+                            }
+                            if !record.exercises.isEmpty { SectionHeading(title: "Выполнено") }
                             ForEach(record.exercises) { exercise in
                                 Panel {
                                     VStack(alignment: .leading, spacing: 7) {

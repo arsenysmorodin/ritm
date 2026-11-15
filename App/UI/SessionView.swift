@@ -2,7 +2,8 @@ import SwiftUI
 
 struct SessionView: View {
     let store: JournalStore
-    var onFinish: () -> Void
+    let health: HealthConnection
+    var onFinish: (WorkoutRecord) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var adding = false
     @State private var confirmDiscard = false
@@ -17,6 +18,13 @@ struct SessionView: View {
                 Page {
                     PageHeader(title: draft.name, caption: "Тренировка в процессе") { EmptyView() }
                     stopwatch(draft)
+                    if let pulse = draft.pulse, !pulse.isEmpty {
+                        TimelineView(.periodic(from: .now, by: 10)) { context in
+                            PulsePanel(points: pulse, live: true, now: context.date)
+                        }
+                    } else if health.isAvailable && store.journal.healthEnabled {
+                        HintPanel(icon: "heart", title: "Пульс во время занятия", text: "Откройте «Ритм» на Apple Watch для живых замеров. Здесь также видны замеры из Apple «Здоровья» за время тренировки.")
+                    }
                     if draft.exercises.isEmpty {
                         HintPanel(icon: "dumbbell", title: "С чего начнём?", text: "Добавьте первое упражнение и отмечайте выполненные подходы.")
                     }
@@ -176,9 +184,9 @@ struct SessionView: View {
     }
 
     private func finish() {
-        if store.finish() != nil {
+        if let record = store.finish() {
             dismiss()
-            onFinish()
+            onFinish(record)
         }
     }
 }

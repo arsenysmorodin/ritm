@@ -18,6 +18,23 @@
 		DA7A0000000000000000001F /* Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000009 /* Style.swift */; };
 		DA7A00000000000000000020 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A0000000000000000000A /* TodayView.swift */; };
 		DA7A00000000000000000022 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DA7A0000000000000000000B /* Assets.xcassets */; };
+		B10000000000000000000001 /* ExerciseCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000001 /* ExerciseCatalog.swift */; };
+		B10000000000000000000002 /* Progress.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000002 /* Progress.swift */; };
+		B10000000000000000000003 /* ExerciseLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000003 /* ExerciseLibraryView.swift */; };
+		B10000000000000000000004 /* ProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000004 /* ProgressView.swift */; };
+		B10000000000000000000005 /* Pulse.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000005 /* Pulse.swift */; };
+		B10000000000000000000006 /* PulsePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000006 /* PulsePanel.swift */; };
+		B10000000000000000000007 /* WatchLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000007 /* WatchLink.swift */; };
+		B10000000000000000000008 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000008 /* WidgetSnapshot.swift */; };
+		C10000000000000000000020 = {isa = PBXBuildFile; fileRef = C10000000000000000000001; };
+		C10000000000000000000021 = {isa = PBXBuildFile; fileRef = DA7A00000000000000000004; };
+		C10000000000000000000022 = {isa = PBXBuildFile; fileRef = B00000000000000000000005; };
+		C10000000000000000000023 = {isa = PBXBuildFile; fileRef = B00000000000000000000007; };
+		C10000000000000000000007 = {isa = PBXBuildFile; fileRef = C10000000000000000000002; };
+		C10000000000000000000010 = {isa = PBXBuildFile; fileRef = C10000000000000000000004; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, );}; };
+		C20000000000000000000020 = {isa = PBXBuildFile; fileRef = C20000000000000000000001; };
+		C20000000000000000000021 = {isa = PBXBuildFile; fileRef = B00000000000000000000008; };
+		C20000000000000000000010 = {isa = PBXBuildFile; fileRef = C20000000000000000000004; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, );}; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +54,26 @@
 		DA7A00000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DA7A00000000000000000012 /* Ritm.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Ritm.entitlements; sourceTree = "<group>"; };
 		DA7A00000000000000000014 /* Ritm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ritm.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00000000000000000000001 /* ExerciseCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseCatalog.swift; sourceTree = "<group>"; };
+		B00000000000000000000002 /* Progress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Progress.swift; sourceTree = "<group>"; };
+		B00000000000000000000003 /* ExerciseLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseLibraryView.swift; sourceTree = "<group>"; };
+		B00000000000000000000004 /* ProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressView.swift; sourceTree = "<group>"; };
+		B00000000000000000000005 /* Pulse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pulse.swift; sourceTree = "<group>"; };
+		B00000000000000000000006 /* PulsePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PulsePanel.swift; sourceTree = "<group>"; };
+		B00000000000000000000007 /* WatchLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLink.swift; sourceTree = "<group>"; };
+		B00000000000000000000008 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
+		C10000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RitmWatchApp.swift; sourceTree = "<group>"; };
+		C10000000000000000000030 = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Watch.xcconfig; sourceTree = "<group>"; };
+		C10000000000000000000031 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Watch-Info.plist; sourceTree = "<group>"; };
+		C10000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C10000000000000000000004 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RitmWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C20000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RitmWidgets.swift; sourceTree = "<group>"; };
+		C20000000000000000000030 = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Widgets.xcconfig; sourceTree = "<group>"; };
+		C20000000000000000000031 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Widgets-Info.plist; sourceTree = "<group>"; };
+		C20000000000000000000032 = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Widgets.entitlements; sourceTree = "<group>"; };
+		C20000000000000000000033 = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Health-Widgets.entitlements; sourceTree = "<group>"; };
+		C20000000000000000000034 = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
+		C20000000000000000000004 = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = RitmWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -47,12 +84,19 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000000000000000000006 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		C20000000000000000000006 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		DA7A0000000000000000000C /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				B00000000000000000000008 /* WidgetSnapshot.swift */,
+				B00000000000000000000007 /* WatchLink.swift */,
+				B00000000000000000000005 /* Pulse.swift */,
+				B00000000000000000000002 /* Progress.swift */,
+				B00000000000000000000001 /* ExerciseCatalog.swift */,
 				DA7A00000000000000000002 /* HealthConnection.swift */,
 				DA7A00000000000000000003 /* JournalStore.swift */,
 				DA7A00000000000000000004 /* Models.swift */,
@@ -63,6 +107,9 @@
 		DA7A0000000000000000000D /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				B00000000000000000000006 /* PulsePanel.swift */,
+				B00000000000000000000004 /* ProgressView.swift */,
+				B00000000000000000000003 /* ExerciseLibraryView.swift */,
 				DA7A00000000000000000005 /* HealthView.swift */,
 				DA7A00000000000000000006 /* HistoryView.swift */,
 				DA7A00000000000000000007 /* ProgramsView.swift */,
@@ -87,6 +134,13 @@
 		DA7A00000000000000000013 /* Config */ = {
 			isa = PBXGroup;
 			children = (
+				C20000000000000000000034 /* Shared.xcconfig */,
+				C20000000000000000000033 /* Health-Widgets.entitlements */,
+				C20000000000000000000032 /* Widgets.entitlements */,
+				C20000000000000000000031 /* Widgets-Info.plist */,
+				C20000000000000000000030 /* Widgets.xcconfig */,
+				C10000000000000000000031 /* Watch-Info.plist */,
+				C10000000000000000000030 /* Watch.xcconfig */,
 				DA7A0000000000000000000F /* App.xcconfig */,
 				DA7A00000000000000000010 /* Health.xcconfig */,
 				DA7A00000000000000000011 /* Info.plist */,
@@ -98,6 +152,8 @@
 		DA7A00000000000000000015 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				C20000000000000000000004 /* RitmWidgets.appex */,
+				C10000000000000000000004 /* RitmWatch.app */,
 				DA7A00000000000000000014 /* Ritm.app */,
 			);
 			name = Products;
@@ -106,6 +162,8 @@
 		DA7A00000000000000000016 /* Ritm */ = {
 			isa = PBXGroup;
 			children = (
+				C20000000000000000000003 /* Widgets */,
+				C10000000000000000000003 /* Watch */,
 				DA7A0000000000000000000E /* App */,
 				DA7A00000000000000000013 /* Config */,
 				DA7A00000000000000000015 /* Products */,
@@ -113,6 +171,8 @@
 			name = Ritm;
 			sourceTree = "<group>";
 		};
+		C10000000000000000000003 = {isa = PBXGroup; children = (C10000000000000000000001, C10000000000000000000002,); path = Watch; sourceTree = "<group>"; };
+		C20000000000000000000003 = {isa = PBXGroup; children = (C20000000000000000000001,); path = Widgets; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -120,6 +180,8 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = DA7A0000000000000000002B /* Build configuration list for PBXNativeTarget "Ritm" */;
 			buildPhases = (
+				C20000000000000000000011,
+				C10000000000000000000011,
 				DA7A00000000000000000021 /* Sources */,
 				DA7A00000000000000000024 /* Frameworks */,
 				DA7A00000000000000000023 /* Resources */,
@@ -127,12 +189,16 @@
 			buildRules = (
 			);
 			dependencies = (
+				C2000000000000000000000F /* RitmWidgets */,
+				C1000000000000000000000F /* RitmWatch */,
 			);
 			name = Ritm;
 			productName = Ritm;
 			productReference = DA7A00000000000000000014 /* Ritm.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C1000000000000000000000D = {isa = PBXNativeTarget; buildConfigurationList = C1000000000000000000000C; buildPhases = (C10000000000000000000005, C10000000000000000000006, C10000000000000000000008,); buildRules = (); dependencies = (); name = RitmWatch; productName = RitmWatch; productReference = C10000000000000000000004; productType = "com.apple.product-type.application"; };
+		C2000000000000000000000D = {isa = PBXNativeTarget; buildConfigurationList = C2000000000000000000000C; buildPhases = (C20000000000000000000005, C20000000000000000000006, C20000000000000000000008,); buildRules = (); dependencies = (); name = RitmWidgets; productName = RitmWidgets; productReference = C20000000000000000000004; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -142,9 +208,12 @@
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					C2000000000000000000000D = {SystemCapabilities = {com.apple.ApplicationGroups.iOS = {enabled = 1; }; }; };
+					C1000000000000000000000D = {SystemCapabilities = {com.apple.HealthKit = {enabled = 1; }; }; };
 					DA7A0000000000000000002C = {
 						CreatedOnToolsVersion = 26.0;
 						SystemCapabilities = {
+							com.apple.ApplicationGroups.iOS = {enabled = 1; };
 							com.apple.HealthKit = {
 								enabled = 1;
 							};
@@ -165,6 +234,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				C2000000000000000000000D /* RitmWidgets */,
+				C1000000000000000000000D /* RitmWatch */,
 				DA7A0000000000000000002C /* Ritm */,
 			);
 		};
@@ -179,6 +250,8 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000007,); runOnlyForDeploymentPostprocessing = 0; };
+		C20000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -186,6 +259,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B10000000000000000000008 /* WidgetSnapshot.swift in Sources */,
+				B10000000000000000000007 /* WatchLink.swift in Sources */,
+				B10000000000000000000006 /* PulsePanel.swift in Sources */,
+				B10000000000000000000005 /* Pulse.swift in Sources */,
+				B10000000000000000000004 /* ProgressView.swift in Sources */,
+				B10000000000000000000003 /* ExerciseLibraryView.swift in Sources */,
+				B10000000000000000000002 /* Progress.swift in Sources */,
+				B10000000000000000000001 /* ExerciseCatalog.swift in Sources */,
 				DA7A00000000000000000017 /* RitmApp.swift in Sources */,
 				DA7A00000000000000000018 /* HealthConnection.swift in Sources */,
 				DA7A00000000000000000019 /* JournalStore.swift in Sources */,
@@ -199,7 +280,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000020, C10000000000000000000021, C10000000000000000000022, C10000000000000000000023,); runOnlyForDeploymentPostprocessing = 0; };
+		C20000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C20000000000000000000020, C20000000000000000000021,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+		C1000000000000000000000E = {isa = PBXContainerItemProxy; containerPortal = DA7A0000000000000000002E; proxyType = 1; remoteGlobalIDString = C1000000000000000000000D; remoteInfo = RitmWatch; };
+		C2000000000000000000000E = {isa = PBXContainerItemProxy; containerPortal = DA7A0000000000000000002E; proxyType = 1; remoteGlobalIDString = C2000000000000000000000D; remoteInfo = RitmWidgets; };
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		C1000000000000000000000F = {isa = PBXTargetDependency; target = C1000000000000000000000D; targetProxy = C1000000000000000000000E; };
+		C2000000000000000000000F = {isa = PBXTargetDependency; target = C2000000000000000000000D; targetProxy = C2000000000000000000000E; };
+/* End PBXTargetDependency section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C10000000000000000000011 = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = "$(CONTENTS_FOLDER_PATH)/Watch"; dstSubfolderSpec = 16; files = (C10000000000000000000010,); name = "Embed Watch Content"; runOnlyForDeploymentPostprocessing = 0; };
+		C20000000000000000000011 = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (C20000000000000000000010,); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		DA7A00000000000000000025 /* Debug */ = {
@@ -256,6 +354,12 @@
 			};
 			name = "Offline Debug";
 		};
+		C10000000000000000000009 = {isa = XCBuildConfiguration; baseConfigurationReference = C10000000000000000000030; buildSettings = { }; name = "Debug"; };
+		C1000000000000000000000A = {isa = XCBuildConfiguration; baseConfigurationReference = C10000000000000000000030; buildSettings = { }; name = "Release"; };
+		C1000000000000000000000B = {isa = XCBuildConfiguration; baseConfigurationReference = C10000000000000000000030; buildSettings = { }; name = "Offline Debug"; };
+		C20000000000000000000009 = {isa = XCBuildConfiguration; baseConfigurationReference = C20000000000000000000030; buildSettings = { }; name = "Debug"; };
+		C2000000000000000000000A = {isa = XCBuildConfiguration; baseConfigurationReference = C20000000000000000000030; buildSettings = { }; name = "Release"; };
+		C2000000000000000000000B = {isa = XCBuildConfiguration; baseConfigurationReference = C20000000000000000000030; buildSettings = { }; name = "Offline Debug"; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -279,6 +383,8 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		C1000000000000000000000C = {isa = XCConfigurationList; buildConfigurations = (C10000000000000000000009, C1000000000000000000000A, C1000000000000000000000B,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		C2000000000000000000000C = {isa = XCConfigurationList; buildConfigurations = (C20000000000000000000009, C2000000000000000000000A, C2000000000000000000000B,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
 	rootObject = DA7A0000000000000000002E /* Project object */;

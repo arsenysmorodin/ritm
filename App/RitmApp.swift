@@ -4,10 +4,11 @@ import SwiftUI
 @main struct RitmApp: App {
     @State private var store = JournalStore.live()
     @State private var health = HealthConnection()
+    @State private var watch = WatchLink()
 
     var body: some Scene {
         WindowGroup {
-            RootView(store: store, health: health)
+            RootView(store: store, health: health, watch: watch)
                 .preferredColorScheme(.dark)
                 #if os(macOS)
                 .frame(minWidth: 360, minHeight: 620)
@@ -24,6 +25,7 @@ import SwiftUI
 struct RootView: View {
     let store: JournalStore
     let health: HealthConnection
+    var watch: WatchLink? = nil
     @Environment(\.scenePhase) private var scene
     @State private var tab = Tab.today
     @State private var showWorkout = false
@@ -62,14 +64,21 @@ struct RootView: View {
         .foregroundStyle(Ink.primary)
         .tint(Ink.lilac)
         .modifier(WorkoutPresentation(show: $showWorkout) {
-            SessionView(store: store) {
+            SessionView(store: store, health: health) { record in
                 tab = .history
                 Task { await health.exportPending(store) }
+                if store.journal.healthEnabled {
+                    Task {
+                        let points = await health.recentPulse(from: record.startedAt, through: record.endedAt)
+                        store.mergePulse(points, workoutID: record.id)
+                    }
+                }
             }.tint(Ink.lilac)
         })
         .onChange(of: scene, initial: true) { _, phase in
             if phase == .active {
                 today = .now
+                store.publishWidgets()
                 if tab == .health { Task { await health.refresh(store) } }
                 Task { await health.exportPending(store) }
             }
@@ -78,6 +87,29 @@ struct RootView: View {
             for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged) {
                 today = .now
                 if scene == .active && tab == .health { await health.refresh(store) }
+            }
+        }
+        .onOpenURL { url in
+            guard url.scheme == "ritm" else { return }
+            if url.host == "history" { tab = .history }
+            if url.host == "today" {
+                tab = .today
+                if store.journal.activeWorkout != nil { showWorkout = true }
+            }
+        }
+        .onChange(of: store.watchSnapshot, initial: true) { _, snapshot in
+            watch?.onEvent = { event in store.receiveWatch(event) }
+            watch?.publish(snapshot)
+        }
+        .task(id: store.journal.healthEnabled ? store.journal.activeWorkout?.id : nil) {
+            guard let draft = store.journal.activeWorkout, store.journal.healthEnabled else { return }
+            while !Task.isCancelled {
+                let now = Date.now
+                let start = max(draft.startedAt, now.addingTimeInterval(-90))
+                let points = await health.recentPulse(from: start, through: now)
+                guard !Task.isCancelled else { return }
+                store.mergePulse(points, workoutID: draft.id, now: now)
+                try? await Task.sleep(for: .seconds(10))
             }
         }
         .storageAlert(store)

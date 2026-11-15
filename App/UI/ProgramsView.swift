@@ -7,6 +7,7 @@ struct ProgramsView: View {
     @State private var deleting: Program?
     @State private var selected: Routine?
     @State private var pendingStart: Routine?
+    @State private var showCatalog = false
 
     var body: some View {
         Page {
@@ -15,6 +16,7 @@ struct ProgramsView: View {
                     IconBadge(icon: "plus", size: 46)
                 }.buttonStyle(PressStyle()).accessibilityLabel("Создать программу")
             }
+            ActionButton(title: "Каталог упражнений", icon: "figure.strengthtraining.traditional", solid: false) { showCatalog = true }
             if store.journal.programs.isEmpty {
                 HintPanel(icon: "square.stack", title: "Пока без программы", text: "Соберите тренировки и выберите дни, в которые хотите заниматься.")
                 ActionButton(title: "Создать программу", icon: "plus") { editing = Program(name: "", routines: []) }
@@ -57,6 +59,7 @@ struct ProgramsView: View {
                 }
             }
         }
+        .sheet(isPresented: $showCatalog) { NavigationStack { ExerciseLibraryView() } }
         .sheet(item: $editing) { program in
             ProgramEditor(initial: program) { store.save($0) }
         }
@@ -235,6 +238,7 @@ struct ExerciseEditor: View {
     @State private var draft: ExercisePlan
     @State private var weight: String
     @State private var target: String
+    @State private var showCatalog = false
     @Environment(\.dismiss) private var dismiss
     let save: (ExercisePlan) -> Void
 
@@ -250,12 +254,9 @@ struct ExerciseEditor: View {
             Form {
                 Section("Упражнение") {
                     TextField("Например, приседания", text: $draft.name).editAutocorrection()
-                    if draft.name.trimmed.isEmpty {
-                        Menu("Выбрать из списка") {
-                            ForEach(["Приседания", "Отжимания", "Ягодичный мост", "Обратные выпады", "Планка", "Тяга гантелей", "Повороты корпуса"], id: \.self) { name in
-                                Button(name) { draft.name = name; if name == "Планка" { draft.unit = .seconds; target = "30" } }
-                            }
-                        }
+                    Button("Выбрать из каталога", systemImage: "figure.strengthtraining.traditional") { showCatalog = true }
+                    if let entry = ExerciseCatalog.find(draft) {
+                        NavigationLink("Мышцы и техника") { ExerciseDetailView(entry: entry) }
                     }
                     Picker("Как считать", selection: $draft.unit) {
                         ForEach(ExerciseUnit.allCases) { unit in Text(unit.label).tag(unit) }
@@ -280,6 +281,16 @@ struct ExerciseEditor: View {
             }
             .formTint()
             .navigationTitle("Упражнение")
+            .sheet(isPresented: $showCatalog) {
+                NavigationStack {
+                    ExerciseLibraryView { entry in
+                        draft.catalogID = entry.id
+                        draft.name = entry.name
+                        draft.unit = entry.unit
+                        target = String(entry.target)
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

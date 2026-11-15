@@ -11,8 +11,10 @@
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>RitmWidgetGroup</key><string>$(RITM_WIDGET_GROUP)</string>
+    <key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string><key>CFBundleURLSchemes</key><array><string>ritm</string></array></dict></array>
     <key>LSRequiresIPhoneOS</key><true/>
-    <key>NSHealthShareUsageDescription</key><string>Ритм показывает число шагов и активную энергию за сегодня.</string>
+    <key>NSHealthShareUsageDescription</key><string>Ритм показывает шаги, активную энергию, динамику веса тела и пульс во время тренировок.</string>
     <key>NSHealthUpdateUsageDescription</key><string>Ритм сохраняет завершённые домашние тренировки в Apple «Здоровье».</string>
     <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
     <key>UILaunchScreen</key><dict><key>UIColorName</key><string>LaunchBackground</string></dict>

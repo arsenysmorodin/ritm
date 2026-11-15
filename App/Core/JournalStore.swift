@@ -1,5 +1,8 @@
 import Foundation
 import Observation
+#if os(iOS)
+import WidgetKit
+#endif
 
 enum JournalFile {
     static func load(_ url: URL) throws -> Journal {
@@ -57,6 +60,7 @@ enum JournalFile {
         do {
             try JournalFile.save(next, to: url)
             journal = next
+            publishWidgets()
             return true
         } catch {
             self.error = "Не удалось сохранить изменения. Проверьте свободное место и попробуйте ещё раз."
@@ -104,12 +108,89 @@ enum JournalFile {
         }
     }
 
+    func mergePulse(_ new: [PulsePoint], workoutID: UUID, now: Date = .now) {
+        guard journal.healthEnabled, !new.isEmpty else { return }
+        if let draft = journal.activeWorkout, draft.id == workoutID {
+            let points = PulsePoint.cleaned((draft.pulse ?? []) + new, from: draft.startedAt, through: now)
+            if points != draft.pulse ?? [] { updateWorkout { $0.pulse = points } }
+        } else if let record = journal.records.first(where: { $0.id == workoutID }) {
+            let points = PulsePoint.cleaned((record.pulse ?? []) + new, from: record.startedAt, through: record.endedAt)
+            if points != record.pulse ?? [] {
+                change { journal in
+                    if let index = journal.records.firstIndex(where: { $0.id == workoutID }) {
+                        journal.records[index].pulse = points
+                    }
+                }
+            }
+        }
+    }
+
     func finish(at date: Date = .now) -> WorkoutRecord? {
         guard let draft = journal.activeWorkout, draft.marked > 0 else { return nil }
         var record = WorkoutRecord(draft, endedAt: date)
         if journal.healthEnabled { record.healthExportRequestedAt = record.endedAt }
         guard change({ $0.records.insert(record, at: 0); $0.activeWorkout = nil }) else { return nil }
         return record
+    }
+
+    func publishWidgets(at now: Date = .now) {
+        #if os(iOS)
+        guard isReadable else { return }
+        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: now) ?? .distantPast
+        let previous = WidgetSnapshot.load()
+        let snapshot = WidgetSnapshot(activeWorkout: journal.activeWorkout?.name,
+            completedSets: journal.activeWorkout?.marked ?? 0, totalSets: journal.activeWorkout?.total ?? 0,
+            routines: (journal.activeProgram?.routines ?? []).map { .init(id: $0.id, title: $0.name, weekday: $0.weekday?.rawValue) },
+            completions: journal.records.filter { $0.startedAt >= cutoff }.map { .init(routineID: $0.routineID, date: $0.startedAt) },
+            weeklyGoal: journal.weeklyGoal)
+        guard snapshot != previous else { return }
+        do { try WidgetSnapshot.write(snapshot) } catch { return }
+        WidgetCenter.shared.reloadTimelines(ofKind: WidgetSnapshot.workoutKind)
+        WidgetCenter.shared.reloadTimelines(ofKind: WidgetSnapshot.weekKind)
+        #endif
+    }
+
+    var watchSnapshot: WatchSnapshot? {
+        guard let draft = journal.activeWorkout else { return nil }
+        let exercise = draft.exercises.first { $0.sets.contains { !$0.complete } }
+        let next = exercise.flatMap { exercise in
+            exercise.sets.first(where: { !$0.complete }).map { set in
+                WatchSnapshot.NextSet(exerciseID: exercise.id, setID: set.id,
+                                      label: "\(exercise.plan.name) · \(set.value) \(exercise.plan.unit.short)")
+            }
+        }
+        return WatchSnapshot(workoutID: draft.id, title: draft.name, kind: draft.kind.rawValue,
+                             startedAt: draft.startedAt, completed: draft.marked, total: draft.total,
+                             next: next, restUntil: draft.restUntil, healthEnabled: journal.healthEnabled)
+    }
+
+    func receiveWatch(_ event: WatchEvent) -> Bool {
+        switch event {
+        case let .mark(workoutID, exerciseID, setID):
+            guard let draft = journal.activeWorkout, draft.id == workoutID,
+                  let exercise = draft.exercises.first(where: { $0.id == exerciseID }),
+                  let set = exercise.sets.first(where: { $0.id == setID }) else { return false }
+            if !set.complete { toggleSet(exerciseID: exerciseID, setID: setID) }
+            return journal.activeWorkout?.exercises.first(where: { $0.id == exerciseID })?.sets.first(where: { $0.id == setID })?.complete == true
+        case let .pulse(workoutID, points):
+            mergePulse(points, workoutID: workoutID)
+            return true
+        case let .finished(activity):
+            guard activity.startedAt <= activity.endedAt, let kind = WorkoutKind(rawValue: activity.kind) else { return false }
+            if journal.records.contains(where: { $0.id == activity.id }) { return true }
+            var draft = ActiveWorkout(routine: Routine(name: kind.title, kind: kind), now: activity.startedAt)
+            draft.id = activity.id
+            if journal.healthEnabled {
+                draft.pulse = PulsePoint.cleaned(activity.pulse, from: activity.startedAt, through: activity.endedAt)
+            }
+            var record = WorkoutRecord(draft, endedAt: activity.endedAt)
+            record.fromWatch = true
+            record.healthExported = true
+            return change {
+                $0.records.append(record)
+                $0.records.sort { $0.startedAt > $1.startedAt }
+            }
+        }
     }
 
     static func live() -> JournalStore {

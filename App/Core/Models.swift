@@ -32,6 +32,7 @@ struct ExercisePlan: Identifiable, Codable, Equatable {
     var target = 10
     var weight: Double = 0
     var rest = 60
+    var catalogID: String?
 }
 
 struct Routine: Identifiable, Codable, Equatable {
@@ -98,6 +99,7 @@ struct ActiveWorkout: Identifiable, Codable, Equatable {
     var startedAt: Date
     var exercises: [LoggedExercise]
     var restUntil: Date? = nil
+    var pulse: [PulsePoint]?
     var notes = ""
 
     init(routine: Routine?, now: Date) {
@@ -125,6 +127,8 @@ struct WorkoutRecord: Identifiable, Codable, Equatable {
     var notes: String
     var healthExported = false
     var healthExportRequestedAt: Date?
+    var pulse: [PulsePoint]?
+    var fromWatch: Bool?
 
     var awaitsHealthExport: Bool { !healthExported && healthExportRequestedAt != nil }
 
@@ -144,6 +148,7 @@ struct WorkoutRecord: Identifiable, Codable, Equatable {
             return exercise.sets.isEmpty ? nil : exercise
         }
         notes = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        pulse = draft.pulse
     }
 }
 
