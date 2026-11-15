@@ -68,16 +68,14 @@ import HealthKit
         let calendar = Calendar.current
         let start = calendar.date(byAdding: .day, value: -364, to: calendar.startOfDay(for: .now)) ?? .distantPast
         let filter = HKQuery.predicateForSamples(withStart: start, end: .now, options: .strictStartDate)
-        let descriptor = HKSampleQueryDescriptor(predicates: [.quantitySample(type: massType, predicate: filter)], sortDescriptors: [SortDescriptor(\.startDate)])
+        let descriptor = HKSampleQueryDescriptor(predicates: [.quantitySample(type: massType, predicate: filter)], sortDescriptors: [])
         let samples = (try? await descriptor.result(for: store)) ?? []
         guard journal.journal.healthEnabled, !Task.isCancelled else { return }
-        var daily: [Date: WeightPoint] = [:]
-        for sample in samples {
-            let kg = sample.quantity.doubleValue(for: .gramUnit(with: .kilo))
-            guard kg.isFinite, kg > 0 else { continue }
-            daily[calendar.startOfDay(for: sample.startDate)] = WeightPoint(id: sample.uuid, date: sample.startDate, kilograms: kg)
+        let kilograms = HKUnit.gramUnit(with: .kilo)
+        let points = samples.map { sample in
+            WeightPoint(id: sample.uuid, date: sample.startDate, kilograms: sample.quantity.doubleValue(for: kilograms))
         }
-        weightHistory = daily.values.sorted { $0.date < $1.date }
+        weightHistory = WeightPoint.latestPerDay(points, calendar: calendar)
     }
 
     private func refreshPermissionStatus() async {

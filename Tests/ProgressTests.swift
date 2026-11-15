@@ -3,6 +3,18 @@ import Testing
 @testable import RitmCore
 
 struct ProgressTests {
+    @Test func weightProgressKeepsTheLatestValidMeasurementForEachLocalDay() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Europe/Moscow"))
+        let midnight = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 15)))
+        let lastNight = WeightPoint(id: UUID(), date: midnight.addingTimeInterval(-60), kilograms: 78)
+        let thisMorning = WeightPoint(id: UUID(), date: midnight.addingTimeInterval(60), kilograms: 77)
+        let thisEvening = WeightPoint(id: UUID(), date: midnight.addingTimeInterval(20 * 3_600), kilograms: 76.5)
+        let invalid = WeightPoint(id: UUID(), date: midnight.addingTimeInterval(23 * 3_600), kilograms: .nan)
+
+        #expect(WeightPoint.latestPerDay([thisEvening, invalid, thisMorning, lastNight], calendar: calendar) == [lastNight, thisEvening])
+    }
+
     @Test func combinesLegacyAndCatalogExerciseSetsWithoutMixingUnits() throws {
         let start = Date(timeIntervalSince1970: 1_800_000_000)
         let legacy = ExercisePlan(name: " ТЯГА  ГАНТЕЛЕЙ ", sets: 2, target: 10, weight: 6)
@@ -43,10 +55,17 @@ struct ProgressTests {
         #expect(store.journal.activeWorkout?.marked == 1)
         let finished = try #require(store.finish(at: now.addingTimeInterval(60)))
         #expect(!store.receiveWatch(mark))
-        let valid = PulsePoint(date: now.addingTimeInterval(15), bpm: 110)
+        let firstPulse = PulsePoint(date: now.addingTimeInterval(15), bpm: 110)
+        let secondPulse = PulsePoint(date: now.addingTimeInterval(35), bpm: 127)
         let late = PulsePoint(date: now.addingTimeInterval(90), bpm: 170)
-        #expect(store.receiveWatch(.pulse(workout: finished.id, points: [valid, valid, late])))
-        #expect(try JournalFile.load(file).records.first?.pulse == [valid])
+        #expect(store.receiveWatch(.pulse(workout: finished.id, points: [secondPulse, firstPulse, firstPulse, late])))
+        let saved = try JournalFile.load(file).records.first?.pulse
+        #expect(saved == [firstPulse, secondPulse])
+        let summary = try #require(PulseSummary(saved ?? []))
+        #expect(summary.minimum == 110)
+        #expect(summary.maximum == 127)
+        #expect(summary.latest == 127)
+        #expect(summary.average == 119)
     }
 
     @Test @MainActor func importsStandaloneWatchWorkoutOnceWithoutRequestingAnotherHealthExport() throws {
