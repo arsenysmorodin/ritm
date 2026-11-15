@@ -2,9 +2,18 @@ import SwiftUI
 
 #if !RITM_PREVIEW
 @main struct RitmApp: App {
-    @State private var store = JournalStore.live()
+    @State private var store: JournalStore
     @State private var health = HealthConnection()
-    @State private var watch = WatchLink()
+    @State private var watch: WatchLink
+
+    init() {
+        let journal = JournalStore.live()
+        let link = WatchLink()
+        link.onEvent = { event in journal.receiveWatch(event) }
+        link.publish(journal.watchSnapshot)
+        _store = State(initialValue: journal)
+        _watch = State(initialValue: link)
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -98,7 +107,6 @@ struct RootView: View {
             }
         }
         .onChange(of: store.watchSnapshot, initial: true) { _, snapshot in
-            watch?.onEvent = { event in store.receiveWatch(event) }
             watch?.publish(snapshot)
         }
         .task(id: store.journal.healthEnabled ? store.journal.activeWorkout?.id : nil) {
