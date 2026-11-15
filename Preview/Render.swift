@@ -23,17 +23,38 @@ import SwiftUI
                 ProgramsView(store: store, start: { _ in })
             }
         }
-        .padding(22)
-        .background(Color(red: 0.09, green: 0.082, blue: 0.13))
-        .tint(Ink.lilac).foregroundStyle(Ink.primary)
-        .environment(\.colorScheme, .dark)
-        let renderer = ImageRenderer(content: layout)
+        let output = URL(fileURLWithPath: CommandLine.arguments[1])
+        try write(layout, to: output)
+        if CommandLine.arguments.count > 2, let entry = ExerciseCatalog.all.first(where: { $0.id == "dumbbell-row" }) {
+            let values = [89, 94, 107, 118, 120, 112, 108, 126, 131, 120, 111, 106]
+            let points = values.enumerated().map { index, bpm in
+                PulsePoint(date: now.addingTimeInterval(Double(index) * 30), bpm: bpm)
+            }
+            let detail = HStack(spacing: 20) {
+                preview(tab: "Программы") { ExerciseDetailView(entry: entry, select: {}) }
+                preview(tab: "История") {
+                    Page {
+                        PageHeader(title: "Всё тело", caption: "История тренировки") { IconBadge(icon: "dumbbell") }
+                        PulsePanel(points: points)
+                    }
+                }
+            }
+            try write(detail, to: URL(fileURLWithPath: CommandLine.arguments[2]))
+        }
+    }
+
+    @MainActor private static func write<V: View>(_ layout: V, to output: URL) throws {
+        let styled = layout.padding(22)
+            .background(Color(red: 0.09, green: 0.082, blue: 0.13))
+            .tint(Ink.lilac).foregroundStyle(Ink.primary)
+            .environment(\.colorScheme, .dark)
+        let renderer = ImageRenderer(content: styled)
         renderer.scale = 1.5
         guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
               let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:]) else {
             throw CocoaError(.fileWriteUnknown)
         }
-        try png.write(to: URL(fileURLWithPath: CommandLine.arguments[1]))
+        try png.write(to: output)
     }
 
     @MainActor private static func preview<Content: View>(tab: String, @ViewBuilder content: () -> Content) -> some View {
