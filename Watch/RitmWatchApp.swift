@@ -28,6 +28,7 @@ import WatchKit
     override init() {
         super.init()
         link.onActivated = { [weak self] in self?.flush() }
+        link.onTransferFailed = { [weak self] event in self?.saveToOutbox(event) }
         if link.active { flush() }
     }
 
@@ -140,18 +141,29 @@ import WatchKit
     }
 
     private func enqueue(_ event: WatchEvent) {
-        let previous = UserDefaults.standard.data(forKey: outboxKey)
-        var events = previous.flatMap { try? JSONDecoder().decode([WatchEvent].self, from: $0) } ?? []
-        events.append(event)
-        UserDefaults.standard.set(try? JSONEncoder().encode(events), forKey: outboxKey)
+        saveToOutbox(event)
         flush()
     }
 
+    private var outbox: [WatchEvent] {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: outboxKey) else { return [] }
+            return (try? JSONDecoder().decode([WatchEvent].self, from: data)) ?? []
+        }
+        set {
+            if newValue.isEmpty { UserDefaults.standard.removeObject(forKey: outboxKey) }
+            else { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: outboxKey) }
+        }
+    }
+
+    private func saveToOutbox(_ event: WatchEvent) {
+        outbox.append(event)
+    }
+
     private func flush() {
-        guard link.active, let data = UserDefaults.standard.data(forKey: outboxKey),
-              let events = try? JSONDecoder().decode([WatchEvent].self, from: data) else { return }
-        for event in events { link.send(event, queued: true) }
-        UserDefaults.standard.removeObject(forKey: outboxKey)
+        let events = outbox
+        guard link.active, !events.isEmpty else { return }
+        outbox = events.filter { !link.queue($0) }
     }
 
     private func capture(_ builder: HKLiveWorkoutBuilder) {

@@ -49,6 +49,7 @@ import WatchConnectivity
         }
     }
     var onActivated: (() -> Void)?
+    var onTransferFailed: ((WatchEvent) -> Void)?
     private var pendingEvents: [WatchEvent] = []
 
     override init() {
@@ -59,36 +60,51 @@ import WatchConnectivity
     }
 
     func publish(_ snapshot: WatchSnapshot?) {
-        guard local != snapshot || (active && WCSession.default.applicationContext["ritm-snapshot"] == nil) else { return }
+        guard local != snapshot else { return }
         local = snapshot
         sendContext()
     }
 
     private func sendContext() {
         #if os(iOS)
-        guard active, WCSession.default.isPaired, let data = try? JSONEncoder().encode(local) else { return }
+        guard WCSession.default.activationState == .activated, WCSession.default.isPaired,
+              let data = try? JSONEncoder().encode(local) else { return }
         try? WCSession.default.updateApplicationContext(["ritm-snapshot": data])
         #endif
     }
 
-    func send(_ event: WatchEvent, queued: Bool = false, reply: ((Bool) -> Void)? = nil) {
-        guard active, let data = try? JSONEncoder().encode(event) else { reply?(false); return }
+    func send(_ event: WatchEvent, reply: ((Bool) -> Void)? = nil) {
+        guard WCSession.default.activationState == .activated, reachable,
+              let data = try? JSONEncoder().encode(event) else { reply?(false); return }
         let message = ["ritm-event": data]
-        if queued {
-            WCSession.default.transferUserInfo(message)
-        } else if reachable {
-            if let reply {
-                WCSession.default.sendMessage(message, replyHandler: { result in
-                    let success = result["ok"] as? Bool ?? false
-                    Task { @MainActor in reply(success) }
-                }, errorHandler: { _ in Task { @MainActor in reply(false) } })
-            } else {
-                WCSession.default.sendMessage(message, replyHandler: nil, errorHandler: nil)
-            }
+        if let reply {
+            WCSession.default.sendMessage(message, replyHandler: { result in
+                let success = result["ok"] as? Bool ?? false
+                Task { @MainActor in reply(success) }
+            }, errorHandler: { _ in Task { @MainActor in reply(false) } })
         } else {
-            reply?(false)
+            WCSession.default.sendMessage(message, replyHandler: nil, errorHandler: nil)
         }
     }
+
+    #if os(watchOS)
+    @discardableResult func queue(_ event: WatchEvent) -> Bool {
+        guard WCSession.default.activationState == .activated, WCSession.default.isCompanionAppInstalled,
+              let data = try? JSONEncoder().encode(event) else { return false }
+        WCSession.default.transferUserInfo(["ritm-event": data])
+        return true
+    }
+
+    nonisolated func sessionCompanionAppInstalledDidChange(_ session: WCSession) {
+        guard session.isCompanionAppInstalled else { return }
+        Task { @MainActor in self.onActivated?() }
+    }
+
+    nonisolated func session(_ session: WCSession, didFinish userInfoTransfer: WCSessionUserInfoTransfer, error: Error?) {
+        guard error != nil, let event = Self.event(from: userInfoTransfer.userInfo) else { return }
+        Task { @MainActor in self.onTransferFailed?(event) }
+    }
+    #endif
 
     private func decodeSnapshot(_ data: Data?) {
         if let data, let decoded = try? JSONDecoder().decode(Optional<WatchSnapshot>.self, from: data) {
@@ -110,11 +126,19 @@ import WatchConnectivity
 
     nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
         let reachable = session.isReachable
-        Task { @MainActor in self.reachable = reachable }
+        Task { @MainActor in
+            self.reachable = reachable
+            if reachable { self.onActivated?() }
+        }
     }
 
     #if os(iOS)
-    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
+    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {
+        Task { @MainActor in
+            self.active = false
+            self.reachable = false
+        }
+    }
     nonisolated func sessionDidDeactivate(_ session: WCSession) { session.activate() }
     nonisolated func sessionWatchStateDidChange(_ session: WCSession) {
         Task { @MainActor in self.sendContext() }
