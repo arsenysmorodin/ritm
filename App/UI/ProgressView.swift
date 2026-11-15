@@ -7,6 +7,7 @@ struct TrainingProgressView: View {
     @State private var section: Section = .exercises
     @State private var period: Period = .quarter
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scene
 
     private enum Section: String, CaseIterable { case exercises = "Упражнения", weight = "Вес тела" }
     private enum Period: Int, CaseIterable {
@@ -15,6 +16,7 @@ struct TrainingProgressView: View {
     }
 
     var body: some View {
+        let shouldRefreshWeight = scene == .active && section == .weight
         Page {
             PageHeader(title: "Прогресс", caption: "Динамика тренировок и веса") { IconBadge(icon: "chart.line.uptrend.xyaxis") }
             Picker("Раздел", selection: $section) {
@@ -26,7 +28,9 @@ struct TrainingProgressView: View {
             }
         }
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } }
-        .task(id: section) { if section == .weight { await health.refreshWeight(store) } }
+        .task(id: shouldRefreshWeight) {
+            if shouldRefreshWeight { await health.refreshWeight(store) }
+        }
         .refreshable { if section == .weight { await health.refreshWeight(store) } }
     }
 
