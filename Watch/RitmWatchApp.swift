@@ -201,6 +201,7 @@ private struct WatchHome: View {
     let workout: WatchWorkout
     @State private var kind: WorkoutKind = .strength
     @State private var confirmSave = false
+    @State private var chooseKind = false
     private let peach = Color(red: 1, green: 0.766, blue: 0.66)
 
     var body: some View {
@@ -215,9 +216,15 @@ private struct WatchHome: View {
                     Button("Завершить", systemImage: "checkmark") { confirmSave = true }.tint(peach)
                 } else {
                     heading("Тренировка дома")
-                    Picker("Тип", selection: $kind) {
-                        ForEach(WorkoutKind.allCases) { Text($0.title).tag($0) }
+                    Button { chooseKind = true } label: {
+                        HStack {
+                            Label(kind.title, systemImage: kind.icon)
+                            Spacer(minLength: 2)
+                            Image(systemName: "chevron.down").font(.caption2)
+                        }
                     }
+                    .accessibilityLabel("Тип тренировки")
+                    .accessibilityValue(kind.title)
                     Button("Начать", systemImage: "play.fill") { Task { await workout.start(kind) } }.tint(peach)
                     Text("Чтобы отмечать подходы с часов, начните программу на iPhone.").font(.footnote).foregroundStyle(.secondary)
                 }
@@ -235,6 +242,11 @@ private struct WatchHome: View {
         }
         .confirmationDialog("Сохранить тренировку?", isPresented: $confirmSave, titleVisibility: .visible) {
             Button("Сохранить") { Task { await workout.save() } }
+        }
+        .confirmationDialog("Тип тренировки", isPresented: $chooseKind, titleVisibility: .visible) {
+            ForEach(WorkoutKind.allCases) { choice in
+                Button(choice.title) { kind = choice }
+            }
         }
     }
 
