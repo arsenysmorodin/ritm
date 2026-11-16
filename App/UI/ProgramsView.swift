@@ -370,6 +370,10 @@ struct ExerciseEditor: View {
     @State private var weight: String
     @State private var target: String
     @State private var drops: [DropInput]
+    @State private var progressionEnabled: Bool
+    @State private var lowerReps: String
+    @State private var upperReps: String
+    @State private var increment: String
     @State private var showCatalog = false
     @Environment(\.dismiss) private var dismiss
     private let fixedSets: Bool
@@ -382,6 +386,10 @@ struct ExerciseEditor: View {
         _target = State(initialValue: String(initial.target))
         _weight = State(initialValue: initial.weight > 0 ? Format.weight(initial.weight) : "")
         _drops = State(initialValue: (initial.drops ?? []).map(DropInput.init))
+        _progressionEnabled = State(initialValue: initial.progression != nil)
+        _lowerReps = State(initialValue: initial.progression.map { String($0.lowerReps) } ?? "")
+        _upperReps = State(initialValue: initial.progression.map { String($0.upperReps) } ?? "")
+        _increment = State(initialValue: initial.progression?.weightIncrement.map(Format.weight) ?? "")
         self.fixedSets = fixedSets
         self.save = save
     }
@@ -440,6 +448,7 @@ struct ExerciseEditor: View {
                         StatusMessage(text: "Укажите вес от 0 до 500 кг.")
                     }
                 }
+                if draft.unit == .repetitions { progressionSection }
                 if draft.unit == .repetitions && ((kilograms ?? 0) > 0 || !drops.isEmpty) { dropSection }
             }
             .navigationTitle("Упражнение")
@@ -464,10 +473,13 @@ struct ExerciseEditor: View {
                         draft.weight = kilograms
                         draft.target = validatedTarget
                         draft.drops = validatedDrops.isEmpty ? nil : validatedDrops
+                        draft.progression = progressionEnabled && draft.unit == .repetitions ? progression : nil
                         draft.techniqueNote = draft.techniqueNote?.trimmed
                         save(draft)
                         dismiss()
-                    }.disabled(draft.name.trimmed.isEmpty || validatedTarget == nil || kilograms == nil || validatedDrops == nil)
+                    }
+                    .disabled(draft.name.trimmed.isEmpty || validatedTarget == nil || kilograms == nil || validatedDrops == nil ||
+                              (draft.unit == .repetitions && progressionEnabled && progression == nil))
                 }
             }
         }
@@ -477,6 +489,43 @@ struct ExerciseEditor: View {
     private var validatedTarget: Int? {
         guard let number = Int(target.trimmed), exerciseQuantityRange.contains(number) else { return nil }
         return number
+    }
+
+    private var progressionSection: some View {
+        Section {
+            Toggle("Следующая цель", isOn: $progressionEnabled)
+                .onChange(of: progressionEnabled) { _, enabled in
+                    if enabled && lowerReps.isEmpty && upperReps.isEmpty {
+                        let repetitions = validatedTarget ?? 10
+                        lowerReps = String(max(1, repetitions - 2))
+                        upperReps = String(repetitions)
+                    }
+                }
+            if progressionEnabled {
+                progressionField("Повторов от", text: $lowerReps)
+                progressionField("Повторов до", text: $upperReps)
+                progressionField("Шаг веса, кг", text: $increment, decimal: true)
+                if progression == nil { StatusMessage(text: "Проверьте диапазон повторов и шаг веса.") }
+            }
+        } footer: {
+            if progressionEnabled {
+                Text("Шаг веса можно оставить пустым. При заполненном шаге новый вес предлагается после выполнения верхней границы во всех подходах.")
+            }
+        }
+    }
+
+    private func progressionField(_ label: String, text: Binding<String>, decimal: Bool = false) -> some View {
+        LabeledContent(label) {
+            TextField("—", text: text).numericKeyboard(decimal: decimal)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private var progression: ExerciseProgression? {
+        guard let lower = Int(lowerReps.trimmed), let upper = Int(upperReps.trimmed),
+              let step = validWeight(increment), increment.trimmed.isEmpty || step > 0 else { return nil }
+        let option = ExerciseProgression(lowerReps: lower, upperReps: upper, weightIncrement: step > 0 ? step : nil)
+        return option.isValid ? option : nil
     }
 
     private var dropSection: some View {

@@ -6,6 +6,7 @@ private struct HealthEntry: TimelineEntry {
     let date: Date
     let snapshot: HealthWidgetSnapshot?
     let accent: RitmAccent
+    var targets = WidgetTargets.load()
     var palette: WidgetPalette { WidgetPalette(selection: accent) }
 
     static func live(at date: Date = .now) -> HealthEntry {
@@ -43,7 +44,7 @@ private struct HealthTimeline: TimelineProvider {
         let calendar = Calendar.current
         let midnight = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: current.date))
             ?? current.date.addingTimeInterval(3600)
-        let rollover = HealthEntry(date: midnight, snapshot: current.snapshot, accent: current.accent)
+        let rollover = HealthEntry(date: midnight, snapshot: current.snapshot, accent: current.accent, targets: current.targets)
         completion(Timeline(entries: [current, rollover], policy: .after(min(midnight, current.date.addingTimeInterval(3600)))))
     }
 }
@@ -209,7 +210,9 @@ private struct NutritionWidgetView: View {
             if let energy = amount(.energy) {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text(format(energy, fraction: false)).font((small ? Font.title2 : .largeTitle).weight(.semibold)).monospacedDigit()
-                    Text("ккал").font(.caption).foregroundStyle(palette.secondary)
+                        .lineLimit(1).minimumScaleFactor(0.64)
+                    Text(goalLabel(.energy) ?? "ккал").font(.caption).foregroundStyle(palette.secondary)
+                        .lineLimit(1).minimumScaleFactor(0.7)
                 }
                 .accessibilityElement(children: .combine)
             } else {
@@ -236,21 +239,31 @@ private struct NutritionWidgetView: View {
         entry.snapshot?.nutrient(nutrient, at: entry.date)
     }
 
+    private func goalLabel(_ nutrient: Nutrient) -> String? {
+        entry.targets.nutrition[nutrient].map { "из \(format(Double($0), fraction: false)) \(nutrient.unit)" }
+    }
+
     private func nutrient(_ kind: Nutrient) -> some View {
         let wide = family == .systemLarge
         let value = amount(kind)
+        let goal = entry.targets.nutrition[kind]
+        let current = value.map { "\(format($0)) " + (goalLabel(kind) ?? kind.unit) }
         return VStack(alignment: .leading, spacing: 1) {
             Text(kind.title).font(wide ? .subheadline : .caption2)
                 .foregroundStyle(kind == .fiber ? palette.accent : palette.secondary)
                 .lineLimit(1).minimumScaleFactor(0.74)
-            Text(value.map { "\(format($0)) \(kind.unit)" } ?? (kind == .fiber ? "Нет данных" : "—"))
+            Text(current ?? (kind == .fiber ? "Нет данных" : "—"))
                 .font((wide ? Font.headline : .caption).weight(.semibold)).monospacedDigit()
                 .foregroundStyle(kind == .fiber && value != nil ? palette.accent : palette.primary)
                 .lineLimit(1).minimumScaleFactor(0.75)
+            if wide, let goal, let value {
+                ProgressView(value: min(value, Double(goal)), total: Double(goal)).tint(palette.accent)
+                    .accessibilityHidden(true)
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(kind.title)
-        .accessibilityValue(value.map { "\(format($0)) \(kind.unit)" } ?? "Нет данных")
+        .accessibilityValue(current ?? "Нет данных")
     }
 }
 

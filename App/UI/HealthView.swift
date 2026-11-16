@@ -4,12 +4,36 @@ struct HealthView: View {
     @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     let health: HealthConnection
+    @Binding var path: [RecoverySection]
     @Environment(\.dynamicTypeSize) private var textSize
     @State private var showPermissions = false
+    @State private var showNutritionGoals = false
 
     var body: some View {
+        NavigationStack(path: $path) {
+            content.navigationDestination(for: RecoverySection.self) { section in
+                RecoveryView(store: store, health: health, section: section)
+            }
+        }
+        .sheet(isPresented: $showNutritionGoals) { NutritionGoalEditor(store: store) }
+    }
+
+    private var content: some View {
         Page {
             PageHeader(title: "Здоровье", caption: "Активность и показатели") { EmptyView() }
+            NavigationLink(value: RecoverySection.overview) {
+                Panel {
+                    HStack(spacing: Theme.Space.md) {
+                        IconBadge(icon: "moon.zzz")
+                        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                            Text("Восстановление").font(.headline)
+                            Text("Сон, ночные замеры и режим").font(.subheadline).foregroundStyle(Theme.secondary)
+                        }
+                        Spacer(minLength: Theme.Space.xs)
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.secondary).accessibilityHidden(true)
+                    }
+                }
+            }.buttonStyle(PressStyle())
             if store.journal.healthEnabled && health.isAvailable {
                 if health.isReading && health.steps == nil && health.activeEnergy == nil {
                     Panel { StatusMessage(text: "Обновляем активность…", loading: true) }
@@ -29,6 +53,8 @@ struct HealthView: View {
                 heartPanel(health.widgetSnapshot)
                 nutritionPanel(health.widgetSnapshot)
                 if let issue = health.widgetError { Panel { StatusMessage(text: issue) } }
+            } else {
+                ActionButton(title: "Цели питания", icon: "target", solid: false) { showNutritionGoals = true }
             }
             Panel {
                 VStack(alignment: .leading, spacing: 12) {
@@ -44,7 +70,7 @@ struct HealthView: View {
                                 showPermissions = true
                             }
                             if health.additionalPermissionsPending {
-                                ActionButton(title: "Разрешить данные для виджетов", icon: "heart.text.square", solid: false) {
+                                ActionButton(title: "Разрешить сон и показатели", icon: "heart.text.square", solid: false) {
                                     Task { await health.connect(store) }
                                 }.disabled(health.isBusy)
                             }
@@ -77,13 +103,13 @@ struct HealthView: View {
         .alert("Разрешения «Здоровья»", isPresented: $showPermissions) {
             Button("Понятно", role: .cancel) {}
         } message: {
-            Text("Откройте Apple «Здоровье» → Профиль → Приложения → «Ритм». Разрешите чтение пульса, ВСР и показателей питания, которые хотите видеть в виджетах.")
+            Text("Откройте Apple «Здоровье» → Профиль → Приложения → «Ритм». Разрешите чтение сна, ночных показателей и нужных данных питания.")
         }
     }
 
     private var connectionText: String {
         if !health.isAvailable { return health.availabilityMessage }
-        if !store.journal.healthEnabled { return "Показывает пульс, ВСР и питание из FatSecret. С разрешения сохраняет завершённые тренировки в Apple «Здоровье»." }
+        if !store.journal.healthEnabled { return "Показывает сон, пульс, ВСР и питание из FatSecret. С разрешения сохраняет завершённые тренировки в Apple «Здоровье»." }
         if !health.canWrite { return "Чтобы отправлять тренировки, разрешите «Ритму» запись в Apple «Здоровье»." }
         return "Завершённые тренировки автоматически сохраняются в «Здоровье»."
     }
@@ -121,31 +147,46 @@ struct HealthView: View {
     }
 
     private func nutritionPanel(_ snapshot: HealthWidgetSnapshot?) -> some View {
-        Panel {
+        let goals = store.journal.nutritionGoals ?? NutritionGoals()
+        return Panel {
             VStack(alignment: .leading, spacing: Theme.Space.md) {
                 SectionHeading(title: "Питание")
                 Text("За сегодня · FatSecret через Apple «Здоровье»")
                     .font(.subheadline).foregroundStyle(Theme.secondary)
                 ForEach(Nutrient.allCases, id: \.self) { kind in
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(kind.title).foregroundStyle(kind == .fiber ? Theme.primary : Theme.secondary)
-                        Spacer(minLength: Theme.Space.sm)
-                        if let amount = snapshot?.nutrient(kind, at: .now) {
-                            Text("\(Format.weight(amount)) \(kind.unit)").fontWeight(.semibold).monospacedDigit()
-                                .foregroundStyle(kind == .fiber ? accent : Theme.primary)
-                        } else {
-                            Text("Нет данных").foregroundStyle(Theme.secondary)
-                        }
-                    }
-                    .font(.subheadline)
-                    .accessibilityElement(children: .combine)
+                    nutritionRow(kind, amount: snapshot?.nutrient(kind, at: .now), goal: goals[kind])
                 }
                 if snapshot?.nutrient(.fiber, at: .now) == nil {
                     Text("Клетчатка появится, когда FatSecret запишет её в Apple «Здоровье» и «Ритм» получит доступ к чтению.")
                         .font(.footnote).foregroundStyle(Theme.secondary)
                 }
+                ActionButton(title: "Цели питания", icon: "target", solid: false) { showNutritionGoals = true }
             }
         }
+    }
+
+    private func nutritionRow(_ kind: Nutrient, amount: Double?, goal: Int?) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(kind.title).foregroundStyle(kind == .fiber ? Theme.primary : Theme.secondary)
+                Spacer(minLength: Theme.Space.sm)
+                if let amount {
+                    Text("\(Format.weight(amount)) \(kind.unit)").fontWeight(.semibold).monospacedDigit()
+                        .foregroundStyle(kind == .fiber ? accent : Theme.primary)
+                } else {
+                    Text("Нет данных").foregroundStyle(Theme.secondary)
+                }
+            }
+            if let goal {
+                if let amount {
+                    SwiftUI.ProgressView(value: min(amount, Double(goal)), total: Double(goal))
+                        .tint(accent).accessibilityHidden(true)
+                }
+                Text("Цель · \(Format.integer(goal)) \(kind.unit)").font(.caption).foregroundStyle(Theme.secondary)
+            }
+        }
+        .font(.subheadline)
+        .accessibilityElement(children: .combine)
     }
 
     private func metric(_ label: String, icon: String, value: Int?) -> some View {
@@ -160,5 +201,61 @@ struct HealthView: View {
                 }
             }
         }
+    }
+}
+
+private struct NutritionGoalEditor: View {
+    let store: JournalStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var fields: [Nutrient: String]
+
+    init(store: JournalStore) {
+        self.store = store
+        let goals = store.journal.nutritionGoals ?? NutritionGoals()
+        _fields = State(initialValue: goals.amounts.mapValues(String.init))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    ForEach(NutritionGoals.nutrients, id: \.self) { nutrient in
+                        let label = nutrient.title + ", " + nutrient.unit
+                        LabeledContent(label) {
+                            TextField("—", text: Binding(
+                                get: { fields[nutrient, default: ""] },
+                                set: { fields[nutrient] = $0 }
+                            ))
+                            .numericKeyboard()
+                            .multilineTextAlignment(.trailing)
+                        }
+                    }
+                } footer: {
+                    Text("Укажите дневные цели. Пустые поля отключают сравнение для этого показателя.")
+                }
+                if goals == nil { StatusMessage(text: "Введите положительные целые числа или оставьте поле пустым.") }
+            }
+            .navigationTitle("Цели питания")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Сохранить") {
+                        if let goals, store.change({ $0.nutritionGoals = goals }) { dismiss() }
+                    }.disabled(goals == nil)
+                }
+            }
+            .storageAlert(store)
+        }
+    }
+
+    private var goals: NutritionGoals? {
+        var result = NutritionGoals()
+        for nutrient in NutritionGoals.nutrients {
+            let text = fields[nutrient, default: ""].trimmed
+            if text.isEmpty { continue }
+            guard let value = Int(text), NutritionGoals.range(for: nutrient).contains(value) else { return nil }
+            result.amounts[nutrient] = value
+        }
+        return result
     }
 }

@@ -143,6 +143,7 @@ struct TodayView: View {
 }
 
 struct AppearanceSettings: View {
+    let store: JournalStore
     @Environment(\.dismiss) private var dismiss
     @AppStorage(RitmAppearance.key) private var appearance = RitmAppearance.system
     @AppStorage(RitmAccent.appKey) private var appAccent = RitmAccent.lime
@@ -164,6 +165,9 @@ struct AppearanceSettings: View {
                         #if os(iOS)
                         .pickerStyle(.navigationLink)
                         #endif
+                }
+                Section("Данные") {
+                    NavigationLink("Резервная копия") { BackupView(store: store) }
                 }
             }
             .navigationTitle("Оформление")

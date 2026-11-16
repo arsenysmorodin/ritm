@@ -96,3 +96,90 @@ struct PreviousSet {
         return nil
     }
 }
+
+struct ExerciseProgression: Codable, Equatable {
+    let lowerReps: Int
+    let upperReps: Int
+    let weightIncrement: Double?
+
+    var isValid: Bool {
+        (1...3600).contains(lowerReps) && (lowerReps...3600).contains(upperReps) &&
+            (weightIncrement.map { (0.01...500).contains($0) } ?? true)
+    }
+}
+
+enum NextExerciseGoal {
+    static func find(for step: WorkoutStep, in workout: ActiveWorkout, records: [WorkoutRecord]) -> PreviousSet? {
+        guard !step.set.complete, step.set.dropStage == nil, step.unit == .repetitions,
+              let plan = workout.exercises.first(where: { $0.id == step.exerciseID })?.plan,
+              let progression = plan.progression, progression.isValid, plan.sets > 0 else { return nil }
+
+        let key = plan.historyKey
+        for record in records.sorted(by: { $0.endedAt > $1.endedAt }) where record.endedAt <= workout.startedAt {
+            let matches = record.exercises.filter { $0.plan.historyKey == key }
+            guard let exercise = matches.first(where: { $0.plan.id == plan.id }) ?? matches.first else { continue }
+
+            let rounds = exercise.steps.filter {
+                $0.set.dropStage == nil && $0.set.complete && (1...3600).contains($0.set.value) &&
+                    (0...500).contains($0.set.weight) && (1...plan.sets).contains($0.round)
+            }
+            guard Set(rounds.map(\.round)).count == plan.sets,
+                  let previous = rounds.first(where: { $0.round == step.round })?.set else { return nil }
+
+            let atTop = rounds.allSatisfy {
+                $0.set.value >= progression.upperReps && abs($0.set.weight - previous.weight) < 0.00001
+            }
+            if atTop, previous.weight > 0, let increment = progression.weightIncrement {
+                let nextWeight = ((previous.weight + increment) * 100).rounded() / 100
+                if nextWeight <= 500, nextWeight > previous.weight,
+                   (plan.drops ?? []).allSatisfy({ $0.weight < nextWeight }) {
+                    return PreviousSet(value: progression.lowerReps, weight: nextWeight)
+                }
+            }
+            guard previous.value < progression.upperReps,
+                  (plan.drops ?? []).allSatisfy({ $0.weight < previous.weight }) else { return nil }
+            return PreviousSet(value: previous.value + 1, weight: previous.weight)
+        }
+        return nil
+    }
+}
+
+struct MuscleWeek: Identifiable {
+    struct Contribution: Identifiable {
+        let id: String
+        var name: String
+        var primary = 0
+        var secondary = 0
+    }
+
+    var id: Muscle { muscle }
+    let muscle: Muscle
+    let exercises: [Contribution]
+    var primary: Int { exercises.reduce(0) { $0 + $1.primary } }
+    var secondary: Int { exercises.reduce(0) { $0 + $1.secondary } }
+
+    static func summarize(_ records: [WorkoutRecord], in interval: DateInterval) -> [MuscleWeek] {
+        var byMuscle: [Muscle: [String: Contribution]] = [:]
+        for record in records where record.startedAt >= interval.start && record.startedAt < interval.end {
+            for exercise in record.exercises {
+                let rounds = exercise.completedRounds
+                guard rounds > 0 else { continue }
+                let key = exercise.plan.historyKey
+                let muscles = exercise.plan.muscles
+                let primary = Set(muscles.primary)
+                let secondary = Set(muscles.secondary).subtracting(primary)
+                for muscle in primary.union(secondary) {
+                    var contribution = byMuscle[muscle]?[key] ?? Contribution(id: key, name: exercise.plan.name)
+                    if primary.contains(muscle) { contribution.primary += rounds } else { contribution.secondary += rounds }
+                    byMuscle[muscle, default: [:]][key] = contribution
+                }
+            }
+        }
+        return Muscle.allCases.compactMap { muscle in
+            guard let exercises = byMuscle[muscle], !exercises.isEmpty else { return nil }
+            return MuscleWeek(muscle: muscle, exercises: exercises.values.sorted {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            })
+        }.sorted { ($0.primary, $0.secondary, $0.muscle.rawValue) > ($1.primary, $1.secondary, $1.muscle.rawValue) }
+    }
+}

@@ -117,3 +117,34 @@ struct JournalTests {
         FileManager.default.temporaryDirectory.appending(path: "RitmTests-\(UUID())").appending(path: "journal.json")
     }
 }
+
+@Test @MainActor func backupRoundTripRestoresLocalGoalsAndProtectsCurrentHealthPreference() throws {
+    let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let url = folder.appending(path: "journal.json")
+    let store = JournalStore(url: url)
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    var archive = Journal.fresh()
+    archive.healthEnabled = true
+    archive.nutritionGoals = NutritionGoals(amounts: [.fiber: 25])
+    archive.sleepGoalMinutes = 450
+    archive.recoveryCheckIns = [RecoveryCheckIn(date: now, feeling: .good)]
+    var draft = ActiveWorkout(routine: archive.programs[0].routines[0], now: now)
+    draft.restUntil = now.addingTimeInterval(60)
+    archive.activeWorkout = draft
+
+    let data = try JSONEncoder().encode(JournalBackup(createdAt: now, journal: archive))
+    let decoded = try JournalBackup.decode(data)
+    #expect(store.restore(decoded))
+    let reread = try JournalFile.load(url)
+    #expect(reread.healthEnabled == false)
+    #expect(reread.activeWorkout?.restUntil == nil)
+    #expect(reread.programs == archive.programs)
+    #expect(reread.nutritionGoals?[.fiber] == 25)
+    #expect(reread.recoveryCheckIns == archive.recoveryCheckIns)
+    #expect(reread.sleepGoal == 450)
+
+    let unsupported = try JSONEncoder().encode(JournalBackup(formatVersion: 2, journal: archive))
+    #expect(throws: CocoaError.self) { try JournalBackup.decode(unsupported) }
+    #expect(try JournalFile.load(url) == reread)
+}

@@ -55,7 +55,9 @@ struct RootView: View {
     @State private var tab = Tab.today
     @State private var showWorkout = false
     @State private var showAppearance = false
+    @State private var showBackup = false
     @State private var historyRecord: UUID?
+    @State private var healthPath: [RecoverySection] = []
     @State private var today = Date.now
 
     private enum Tab: Hashable { case today, programs, history, health }
@@ -78,7 +80,7 @@ struct RootView: View {
                         .tabItem { Label("Программы", systemImage: "square.stack") }.tag(Tab.programs)
                     HistoryView(store: store, health: health, selected: $historyRecord)
                         .tabItem { Label("История", systemImage: "clock.arrow.circlepath") }.tag(Tab.history)
-                    HealthView(store: store, health: health)
+                    HealthView(store: store, health: health, path: $healthPath)
                         .tabItem { Label("Здоровье", systemImage: "heart") }.tag(Tab.health)
                 }
                 .storageAlert(store)
@@ -89,12 +91,19 @@ struct RootView: View {
                         StatusMessage(text: store.error ?? "Исходный файл остался на устройстве. Попробуйте открыть журнал ещё раз.")
                     }
                     ActionButton(title: "Открыть журнал", icon: "arrow.clockwise") { store.reload() }
+                    ActionButton(title: "Восстановить из копии", icon: "arrow.down.document", solid: false) { showBackup = true }
                 }
             }
         }
         .foregroundStyle(Theme.primary)
         .tint(accent)
-        .sheet(isPresented: $showAppearance) { AppearanceSettings() }
+        .sheet(isPresented: $showAppearance) { AppearanceSettings(store: store) }
+        .sheet(isPresented: $showBackup) {
+            NavigationStack {
+                BackupView(store: store)
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { showBackup = false } } }
+            }
+        }
         .modifier(WorkoutPresentation(show: $showWorkout) {
             SessionView(store: store, health: health) { record in
                 tab = .history
@@ -151,10 +160,17 @@ struct RootView: View {
                 tab = .today
                 if store.journal.activeWorkout != nil { showWorkout = true }
             }
-            if url.host == "health" {
+            if let host = url.host, ["health", "recovery", "sleep", "sleep-vitals", "sleep-schedule"].contains(host) {
                 showAppearance = false
                 showWorkout = false
                 historyRecord = nil
+                switch host {
+                case "recovery": healthPath = [.overview]
+                case "sleep": healthPath = [.sleep]
+                case "sleep-vitals": healthPath = [.vitals]
+                case "sleep-schedule": healthPath = [.regularity]
+                default: healthPath = []
+                }
                 tab = .health
             }
         }

@@ -17,6 +17,9 @@ import WidgetKit
     private var refreshID = UUID()
     private(set) var widgetSnapshot = WidgetStorage.load(HealthWidgetSnapshot.self, file: HealthWidgetSnapshot.file)
     private(set) var widgetError: String?
+    private(set) var recoverySnapshot = WidgetStorage.load(RecoverySnapshot.self, file: RecoverySnapshot.file)
+    private(set) var recoveryError: String?
+    private(set) var isReadingRecovery = false
 
     #if os(iOS) && RITM_HEALTHKIT
     private let store = HKHealthStore()
@@ -25,11 +28,13 @@ import WidgetKit
     private let massType = HKQuantityType(.bodyMass)
     private let pulseType = HKQuantityType(.heartRate)
     private var reads: Set<HKObjectType> {
-        Set<HKObjectType>([stepsType, energyType, massType]).union(HealthWidgetReader.types)
+        Set<HKObjectType>([stepsType, energyType, massType]).union(HealthWidgetReader.types).union(RecoveryReader.types)
     }
     private let workoutType = HKObjectType.workoutType()
     private let widgetReader = HealthWidgetReader()
+    private let recoveryReader = RecoveryReader()
     private var widgetRequest: (id: UUID, task: Task<HealthWidgetSnapshot, Error>)?
+    private var recoveryRequest: (id: UUID, task: Task<RecoverySnapshot, Error>)?
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
     private(set) var canWrite = false
@@ -44,6 +49,7 @@ import WidgetKit
             journal.change { $0.healthEnabled = true }
             startWidgetUpdates(journal)
             widgetReader.enableBackgroundUpdates()
+            recoveryReader.enableBackgroundUpdates()
         } catch {
             issue = "Не удалось открыть доступ к «Здоровью». Проверьте разрешения и попробуйте снова."
         }
@@ -76,11 +82,20 @@ import WidgetKit
     func startWidgetUpdates(_ journal: JournalStore) {
         guard isAvailable, journal.isReadable, journal.journal.healthEnabled else { return }
         widgetReader.start { [weak self, weak journal] in
-            if let journal { await self?.refreshWidgetData(journal) }
+            if let journal { await self?.refreshVitalsWidgets(journal) }
+        }
+        recoveryReader.start { [weak self, weak journal] in
+            if let journal { await self?.refreshRecovery(journal) }
         }
     }
 
     func refreshWidgetData(_ journal: JournalStore) async {
+        async let vitals: Void = refreshVitalsWidgets(journal)
+        await refreshRecovery(journal)
+        await vitals
+    }
+
+    private func refreshVitalsWidgets(_ journal: JournalStore) async {
         guard isAvailable, journal.isReadable, journal.journal.healthEnabled else { return }
         if let request = widgetRequest {
             _ = try? await request.task.value
@@ -109,6 +124,42 @@ import WidgetKit
     private func reloadHealthWidgets() {
         WidgetCenter.shared.reloadTimelines(ofKind: HealthWidgetSnapshot.heartKind)
         WidgetCenter.shared.reloadTimelines(ofKind: HealthWidgetSnapshot.nutritionKind)
+    }
+
+    func refreshRecovery(_ journal: JournalStore) async {
+        guard isAvailable, journal.isReadable, journal.journal.healthEnabled else { return }
+        if let recoveryRequest {
+            _ = try? await recoveryRequest.task.value
+            return
+        }
+        let id = UUID()
+        let task = Task { try await recoveryReader.snapshot() }
+        recoveryRequest = (id, task)
+        isReadingRecovery = true
+        defer {
+            if recoveryRequest?.id == id {
+                recoveryRequest = nil
+                isReadingRecovery = false
+            }
+        }
+        do {
+            let snapshot = try await task.value
+            guard recoveryRequest?.id == id, journal.journal.healthEnabled else { return }
+            recoverySnapshot = snapshot
+            let cached = WidgetStorage.load(RecoverySnapshot.self, file: RecoverySnapshot.file)
+            if cached != snapshot {
+                try WidgetStorage.write(snapshot, file: RecoverySnapshot.file)
+                reloadRecoveryWidgets()
+            }
+            recoveryError = nil
+        } catch {
+            guard recoveryRequest?.id == id, journal.journal.healthEnabled else { return }
+            recoveryError = "Не удалось обновить сон и ночные показатели. Проверьте доступ и потяните экран вниз для повтора."
+        }
+    }
+
+    private func reloadRecoveryWidgets() {
+        for kind in RecoverySnapshot.widgetKinds { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
     }
 
     func refreshWeight(_ journal: JournalStore) async {
@@ -242,6 +293,7 @@ import WidgetKit
     func exportPending(_ journal: JournalStore, first: UUID? = nil) async {}
     func startWidgetUpdates(_ journal: JournalStore) {}
     func refreshWidgetData(_ journal: JournalStore) async {}
+    func refreshRecovery(_ journal: JournalStore) async {}
     #endif
 
     func disconnect(_ journal: JournalStore) {
@@ -254,6 +306,14 @@ import WidgetKit
             widgetError = nil
             try? WidgetStorage.remove(file: HealthWidgetSnapshot.file)
             reloadHealthWidgets()
+            recoveryReader.stop()
+            recoveryRequest?.task.cancel()
+            recoveryRequest = nil
+            recoverySnapshot = nil
+            recoveryError = nil
+            isReadingRecovery = false
+            try? WidgetStorage.remove(file: RecoverySnapshot.file)
+            reloadRecoveryWidgets()
             #endif
             clearMetrics()
             issue = nil

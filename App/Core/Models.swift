@@ -1,16 +1,5 @@
 import Foundation
 
-enum WorkoutKind: String, Codable, CaseIterable, Identifiable {
-    case strength, mobility, intervals
-    var id: Self { self }
-    var title: String {
-        switch self { case .strength: "Силовая"; case .mobility: "Подвижность"; case .intervals: "Интервальная" }
-    }
-    var icon: String {
-        switch self { case .strength: "dumbbell"; case .mobility: "figure.flexibility"; case .intervals: "bolt" }
-    }
-}
-
 enum ExerciseUnit: String, Codable, CaseIterable, Identifiable {
     case repetitions, seconds
     var id: Self { self }
@@ -81,6 +70,7 @@ struct ExercisePlan: Identifiable, Codable, Equatable {
     var muscleOverride: MuscleSelection?
     var techniqueNote: String?
     var drops: [DropStagePlan]?
+    var progression: ExerciseProgression?
 }
 
 enum ExerciseBlockKind: String, Codable, CaseIterable, Identifiable {
@@ -257,6 +247,16 @@ struct Journal: Codable, Equatable {
     var records: [WorkoutRecord]
     var weeklyGoal: Int
     var healthEnabled: Bool
+    var nutritionGoals: NutritionGoals?
+    var sleepGoalMinutes: Int?
+    var recoveryCheckIns: [RecoveryCheckIn]?
+
+    var sleepGoal: Int {
+        guard let sleepGoalMinutes, RecoverySnapshot.sleepGoalRange.contains(sleepGoalMinutes) else {
+            return RecoverySnapshot.defaultSleepMinutes
+        }
+        return sleepGoalMinutes
+    }
 
     static func fresh() -> Journal {
         let first = Program.starter()

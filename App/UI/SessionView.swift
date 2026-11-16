@@ -228,9 +228,17 @@ struct SessionView: View {
         VStack(alignment: .leading, spacing: Theme.Space.xs) {
             stepControls(step, grouped: grouped, next: next)
             if next, let previous = previousSet(for: step) {
-                PreviousSetButton(previous: previous, unit: step.unit,
+                SetSuggestionButton(previous: previous, unit: step.unit,
                                   matches: step.set.value == previous.value && step.set.weight == previous.weight) {
                     store.applyPreviousSet(previous, to: step)
+                }
+            }
+            if next, let workout = store.journal.activeWorkout,
+               let goal = NextExerciseGoal.find(for: step, in: workout, records: store.journal.records) {
+                SetSuggestionButton(previous: goal, unit: step.unit,
+                                    matches: step.set.value == goal.value && step.set.weight == goal.weight,
+                                    title: "Следующая цель", icon: "target") {
+                    store.applyPreviousSet(goal, to: step)
                 }
             }
         }
@@ -424,11 +432,13 @@ struct SetSelection: Identifiable {
     let previous: PreviousSet?
 }
 
-private struct PreviousSetButton: View {
+private struct SetSuggestionButton: View {
     @Environment(\.ritmAccent) private var accent
     let previous: PreviousSet
     let unit: ExerciseUnit
     let matches: Bool
+    var title = "В прошлый раз"
+    var icon = "clock.arrow.circlepath"
     let apply: () -> Void
 
     var body: some View {
@@ -437,13 +447,13 @@ private struct PreviousSetButton: View {
         let label = HStack(spacing: Theme.Space.sm) {
             Label {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("В прошлый раз").font(.caption).foregroundStyle(Theme.secondary)
+                    Text(title).font(.caption).foregroundStyle(Theme.secondary)
                     Text(details).font(.subheadline.weight(.semibold)).monospacedDigit()
                         .foregroundStyle(Theme.primary)
                 }
                 .fixedSize(horizontal: false, vertical: true)
             } icon: {
-                Image(systemName: "clock.arrow.circlepath").foregroundStyle(Theme.secondary).accessibilityHidden(true)
+                Image(systemName: icon).foregroundStyle(Theme.secondary).accessibilityHidden(true)
             }
             Spacer(minLength: Theme.Space.xs)
             Image(systemName: matches ? "checkmark" : "arrow.turn.down.left")
@@ -457,12 +467,12 @@ private struct PreviousSetButton: View {
 
         if matches {
             label.accessibilityElement(children: .ignore)
-                .accessibilityLabel("В прошлый раз \(details)")
+                .accessibilityLabel("\(title), \(details)")
                 .accessibilityValue("Значения уже в подходе")
         } else {
             Button(action: apply) { label }
                 .buttonStyle(PressStyle())
-                .accessibilityLabel("Подставить значения прошлого подхода, \(details)")
+                .accessibilityLabel("\(title), подставить \(details)")
         }
     }
 }
@@ -497,7 +507,7 @@ private struct SetEditor: View {
                     StatusMessage(text: "Укажите вес от 0 до 500 кг.")
                 }
                 if let previous = selection.previous {
-                    PreviousSetButton(previous: previous, unit: selection.unit,
+                    SetSuggestionButton(previous: previous, unit: selection.unit,
                                       matches: Int(value.trimmed) == previous.value && validWeight(weight) == previous.weight) {
                         value = String(previous.value)
                         weight = previous.weight > 0 ? Format.weight(previous.weight) : ""

@@ -183,6 +183,10 @@ private struct RestTimerActivity: Widget {
         TrainingWeekWidget()
         HeartWidget()
         NutritionWidget()
+        RecoveryWidget()
+        SleepStagesWidget()
+        SleepMeasurementsWidget()
+        SleepScheduleWidget()
         RestTimerActivity()
     }
 }

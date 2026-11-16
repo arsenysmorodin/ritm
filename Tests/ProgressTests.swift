@@ -96,3 +96,47 @@ struct ProgressTests {
         #expect(summary.suggestion(at: monday, calendar: calendar) == "Ноги")
     }
 }
+
+@Test func nextGoalRequiresTheFullRepetitionRangeBeforeIncreasingWeight() throws {
+    let start = Date(timeIntervalSince1970: 1_800_000_000)
+    let progression = ExerciseProgression(lowerReps: 8, upperReps: 12, weightIncrement: 2)
+    let plan = ExercisePlan(name: "Тяга", sets: 3, target: 12, weight: 12, progression: progression)
+    let routine = Routine(name: "Тренировка", exercises: [plan])
+    var previous = ActiveWorkout(routine: routine, now: start)
+    for index in previous.exercises[0].sets.indices { previous.exercises[0].sets[index].complete = true }
+    let current = ActiveWorkout(routine: routine, now: start.addingTimeInterval(7200))
+    let step = try #require(current.nextStep)
+    let complete = WorkoutRecord(previous, endedAt: start.addingTimeInterval(3600))
+    let next = try #require(NextExerciseGoal.find(for: step, in: current, records: [complete]))
+    #expect(next.weight == 14)
+    #expect(next.value == 8)
+
+    previous.exercises[0].sets[0].value = 10
+    let lower = WorkoutRecord(previous, endedAt: start.addingTimeInterval(3650))
+    let repeatWeight = try #require(NextExerciseGoal.find(for: step, in: current, records: [lower, complete]))
+    #expect(repeatWeight.weight == 12)
+    #expect(repeatWeight.value == 11)
+    previous.exercises[0].sets[2].complete = false
+    let partial = WorkoutRecord(previous, endedAt: start.addingTimeInterval(3700))
+    #expect(NextExerciseGoal.find(for: step, in: current, records: [partial, complete]) == nil)
+}
+
+@Test func muscleWorkloadCountsDropRoundsOnceAndSeparatesMuscleRoles() throws {
+    let start = Date(timeIntervalSince1970: 1_800_000_000)
+    let plan = ExercisePlan(name: "Свой жим", sets: 2, target: 12, weight: 10, isCustom: true,
+                            muscleOverride: MuscleSelection(primary: [.chest], secondary: [.chest, .triceps]),
+                            drops: [DropStagePlan(repetitions: 5, weight: 5)])
+    var workout = ActiveWorkout(routine: Routine(name: "Жим", exercises: [plan]), now: start)
+    for index in [0, 1, 2] { workout.exercises[0].sets[index].complete = true }
+    let earlier = ActiveWorkout(routine: nil, now: start.addingTimeInterval(-3600))
+    let rows = MuscleWeek.summarize([WorkoutRecord(workout, endedAt: start.addingTimeInterval(600)),
+                                     WorkoutRecord(earlier, endedAt: start)],
+                                    in: DateInterval(start: start, duration: 7 * 86400))
+    let chest = try #require(rows.first { $0.muscle == .chest })
+    let triceps = try #require(rows.first { $0.muscle == .triceps })
+    #expect(chest.primary == 2)
+    #expect(chest.secondary == 0)
+    #expect(triceps.primary == 0)
+    #expect(triceps.secondary == 2)
+    #expect(chest.exercises.map(\.name) == ["Свой жим"])
+}

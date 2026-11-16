@@ -12,7 +12,9 @@ struct TrainingProgressView: View {
     @Environment(\.scenePhase) private var scene
     @Environment(\.dynamicTypeSize) private var textSize
 
-    private enum Section: String, CaseIterable { case exercises = "Упражнения", weight = "Вес тела" }
+    private enum Section: String, CaseIterable {
+        case exercises = "Упражнения", muscles = "Мышцы", weight = "Вес тела"
+    }
     private enum Period: Int, CaseIterable {
         case month = 30, quarter = 90, year = 365
         var title: String { "\(rawValue) дн." }
@@ -21,12 +23,13 @@ struct TrainingProgressView: View {
     var body: some View {
         let shouldRefreshWeight = scene == .active && section == .weight
         Page {
-            PageHeader(title: "Прогресс", caption: "Тренировки и вес тела") { EmptyView() }
+            PageHeader(title: "Прогресс", caption: "Тренировки, мышцы и вес тела") { EmptyView() }
             Picker("Раздел", selection: $section) {
                 ForEach(Section.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }.progressPicker(textSize)
             switch section {
             case .exercises: exerciseList
+            case .muscles: MuscleWorkload(records: store.journal.records)
             case .weight: weightHistory
             }
         }
@@ -230,5 +233,84 @@ extension View {
                 AxisValueLabel().foregroundStyle(Theme.secondary)
             }
         }
+    }
+}
+
+private struct MuscleWorkload: View {
+    let records: [WorkoutRecord]
+    @State private var weekOffset = 0
+
+    var body: some View {
+        let interval = week
+        let rows = MuscleWeek.summarize(records, in: interval)
+        let primary = rows.filter { $0.primary > 0 }.map(\.muscle)
+        let secondary = rows.filter { $0.primary == 0 && $0.secondary > 0 }.map(\.muscle)
+        VStack(alignment: .leading, spacing: Theme.Space.md) {
+            Panel {
+                HStack {
+                    weekButton("chevron.left", label: "Предыдущая неделя", step: -1)
+                    Text(weekTitle(interval)).font(.subheadline.weight(.semibold))
+                        .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    weekButton("chevron.right", label: "Следующая неделя", step: 1)
+                        .disabled(weekOffset == 0)
+                }
+            }
+            if rows.isEmpty {
+                HintPanel(icon: "figure.strengthtraining.traditional", title: "Нет нагрузки по мышцам",
+                          text: "На карте появятся выполненные подходы упражнений с указанными мышцами.")
+            } else {
+                MuscleMap(muscles: MuscleSelection(primary: primary, secondary: secondary), title: "Мышцы за неделю")
+                Text("Основная и дополнительная работа считаются отдельно. Этапы одного дропсета входят в один подход.")
+                    .font(.footnote).foregroundStyle(Theme.secondary)
+                ForEach(rows) { row in
+                    Panel {
+                        DisclosureGroup {
+                            VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                                ForEach(row.exercises) { exercise in
+                                    VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                                        Text(exercise.name).font(.subheadline.weight(.medium))
+                                        Text(counts(exercise.primary, exercise.secondary))
+                                            .font(.footnote).foregroundStyle(Theme.secondary)
+                                    }
+                                    .accessibilityElement(children: .combine)
+                                }
+                            }
+                            .padding(.top, Theme.Space.md)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        } label: {
+                            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                                Text(row.muscle.title).font(.headline)
+                                Text(counts(row.primary, row.secondary))
+                                    .font(.subheadline).foregroundStyle(Theme.secondary)
+                            }
+                            .frame(minHeight: Theme.touch, alignment: .leading)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var week: DateInterval {
+        var calendar = Calendar.current
+        calendar.firstWeekday = Weekday.mon.rawValue
+        let date = calendar.date(byAdding: .weekOfYear, value: weekOffset, to: .now) ?? .now
+        return calendar.dateInterval(of: .weekOfYear, for: date) ?? DateInterval(start: date, duration: 7 * 86400)
+    }
+
+    private func weekTitle(_ interval: DateInterval) -> String {
+        let sunday = Calendar.current.date(byAdding: .day, value: 6, to: interval.start) ?? interval.start
+        return Format.date(interval.start) + " — " + Format.date(sunday)
+    }
+
+    private func weekButton(_ icon: String, label: String, step: Int) -> some View {
+        Button { weekOffset += step } label: {
+            Image(systemName: icon).frame(width: Theme.touch, height: Theme.touch)
+        }
+        .accessibilityLabel(label)
+    }
+
+    private func counts(_ primary: Int, _ secondary: Int) -> String {
+        "Основная: \(primary) · Дополнительная: \(secondary)"
     }
 }

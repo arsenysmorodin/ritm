@@ -32,6 +32,18 @@ enum JournalFile {
     }
 }
 
+struct JournalBackup: Codable {
+    var formatVersion = 1
+    var createdAt = Date.now
+    let journal: Journal
+
+    static func decode(_ data: Data) throws -> Self {
+        let archive = try JSONDecoder().decode(Self.self, from: data)
+        guard archive.formatVersion == 1, archive.journal.version == 1 else { throw CocoaError(.fileReadUnknown) }
+        return archive
+    }
+}
+
 @MainActor @Observable final class JournalStore {
     private let url: URL
     private(set) var journal: Journal
@@ -84,6 +96,30 @@ enum JournalFile {
         return updateWorkout {
             $0.exercises[exercise].sets[set].value = previous.value
             $0.exercises[exercise].sets[set].weight = previous.weight
+        }
+    }
+
+    @discardableResult func restore(_ backup: JournalBackup) -> Bool {
+        var replacement = backup.journal
+        let previousRest = journal.activeWorkout?.rest
+        replacement.healthEnabled = journal.healthEnabled
+        replacement.activeWorkout?.restUntil = nil
+        let exported = Set(journal.records.filter(\.healthExported).map(\.id))
+        for index in replacement.records.indices {
+            replacement.records[index].healthExportRequestedAt = nil
+            if exported.contains(replacement.records[index].id) { replacement.records[index].healthExported = true }
+        }
+        do {
+            try JournalFile.save(replacement, to: url)
+            journal = replacement
+            isReadable = true
+            error = nil
+            if previousRest != nil { onRestChanged?(nil) }
+            publishWidgets()
+            return true
+        } catch {
+            self.error = "Не удалось восстановить копию. Журнал остался на устройстве."
+            return false
         }
     }
 
@@ -155,6 +191,11 @@ enum JournalFile {
     func publishWidgets(at now: Date = .now) {
         #if os(iOS)
         guard isReadable else { return }
+        let targets = WidgetTargets(nutrition: journal.nutritionGoals ?? NutritionGoals(), sleepMinutes: journal.sleepGoal)
+        if targets != WidgetTargets.load(), (try? WidgetStorage.write(targets, file: WidgetTargets.file)) != nil {
+            WidgetCenter.shared.reloadTimelines(ofKind: HealthWidgetSnapshot.nutritionKind)
+            for kind in RecoverySnapshot.widgetKinds { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
+        }
         let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: now) ?? .distantPast
         let previous = WidgetSnapshot.load()
         let snapshot = WidgetSnapshot(activeWorkout: journal.activeWorkout?.name,

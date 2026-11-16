@@ -25,6 +25,30 @@ enum Nutrient: String, CaseIterable, Codable {
     }
 }
 
+struct NutritionGoals: Codable, Equatable {
+    static let nutrients: [Nutrient] = [.energy, .protein, .fat, .carbs, .fiber]
+    var amounts: [Nutrient: Int] = [:]
+
+    subscript(_ nutrient: Nutrient) -> Int? {
+        guard let value = amounts[nutrient], Self.range(for: nutrient).contains(value) else { return nil }
+        return value
+    }
+
+    static func range(for nutrient: Nutrient) -> ClosedRange<Int> {
+        1...(nutrient == .energy ? 20_000 : 2000)
+    }
+}
+
+struct WidgetTargets: Codable, Equatable {
+    static let file = "targets.json"
+    let nutrition: NutritionGoals
+    let sleepMinutes: Int
+
+    static func load() -> Self {
+        WidgetStorage.load(Self.self, file: file) ?? Self(nutrition: NutritionGoals(), sleepMinutes: RecoverySnapshot.defaultSleepMinutes)
+    }
+}
+
 struct CardiacReading: Codable, Equatable, Identifiable {
     var id: Date { date }
     let date: Date
