@@ -26,28 +26,30 @@ private struct RitmProvider: TimelineProvider {
 
 }
 
-private let paper = Color(red: 0.108, green: 0.098, blue: 0.156)
-private let lilac = Color(red: 0.851, green: 0.799, blue: 1)
-private let peach = Color(red: 1, green: 0.766, blue: 0.66)
-
 private struct NextWorkoutWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: WidgetSnapshot.workoutKind, provider: RitmProvider()) { entry in
             VStack(alignment: .leading, spacing: 7) {
                 Label(entry.snapshot?.activeWorkout == nil ? "Тренировка" : "В процессе", systemImage: "dumbbell.fill")
-                    .font(.caption.weight(.semibold)).foregroundStyle(lilac)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(entry.snapshot?.activeWorkout == nil ? Theme.secondary : Theme.accent)
                 Spacer(minLength: 4)
                 Text(entry.snapshot?.activeWorkout ?? entry.snapshot?.suggestion(at: entry.date) ?? "Открыть «Ритм»")
                     .font(.title3.weight(.semibold)).minimumScaleFactor(0.7).lineLimit(3)
                     .privacySensitive()
                 if let summary = entry.snapshot, summary.activeWorkout != nil {
-                    Text("\(summary.completedSets) из \(summary.totalSets) подходов").font(.caption2).foregroundStyle(lilac)
+                    Text("\(summary.completedSets) из \(summary.totalSets) подходов").font(.caption2).foregroundStyle(Theme.secondary)
+                    if summary.totalSets > 0 {
+                        ProgressView(value: Double(summary.completedSets), total: Double(summary.totalSets))
+                            .tint(Theme.accent).accessibilityHidden(true)
+                    }
                 } else {
-                    Text("Перейти к тренировке").font(.caption2).foregroundStyle(lilac)
+                    Text("Перейти к тренировке").font(.caption2).foregroundStyle(Theme.secondary)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .containerBackground(paper, for: .widget).environment(\.colorScheme, .dark)
+            .foregroundStyle(Theme.primary)
+            .containerBackground(Theme.surface, for: .widget)
             .widgetURL(URL(string: "ritm://today"))
         }
         .configurationDisplayName("Тренировка «Ритм»")
@@ -62,15 +64,15 @@ private struct TrainingWeekWidget: Widget {
             let values = entry.snapshot?.week(at: entry.date) ?? Array(repeating: 0, count: 7)
             let total = values.reduce(0, +)
             VStack(alignment: .leading, spacing: 8) {
-                Label("Эта неделя", systemImage: "calendar").font(.caption.weight(.semibold)).foregroundStyle(lilac)
+                Label("Эта неделя", systemImage: "calendar").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondary)
                 Spacer(minLength: 0)
                 if let snapshot = entry.snapshot {
-                    Text("\(total) из \(snapshot.weeklyGoal)").font(.system(.title, design: .rounded, weight: .semibold)).monospacedDigit()
+                    Text("\(total) из \(snapshot.weeklyGoal)").font(Theme.metric)
                     HStack(spacing: 3) {
                         ForEach(Array(values.enumerated()), id: \.offset) { offset, count in
                             VStack(spacing: 3) {
-                                Capsule().fill(count > 0 ? peach : lilac.opacity(0.17)).frame(height: 8)
-                                Text(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][offset]).font(.system(size: 8)).foregroundStyle(lilac)
+                                Capsule().fill(count > 0 ? Theme.accent : Theme.elevated).frame(height: 8)
+                                Text(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][offset]).font(.system(size: 8)).foregroundStyle(Theme.secondary)
                             }
                         }
                     }.accessibilityHidden(true)
@@ -80,7 +82,8 @@ private struct TrainingWeekWidget: Widget {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
-            .containerBackground(paper, for: .widget).environment(\.colorScheme, .dark)
+            .foregroundStyle(Theme.primary)
+            .containerBackground(Theme.surface, for: .widget)
             .widgetURL(URL(string: "ritm://history"))
         }
         .configurationDisplayName("Неделя «Ритм»")

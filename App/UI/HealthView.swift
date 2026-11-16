@@ -8,22 +8,30 @@ struct HealthView: View {
 
     var body: some View {
         Page {
-            PageHeader(title: "Здоровье", caption: "Активность за сегодня") { IconBadge(icon: "heart", color: Ink.peach) }
+            PageHeader(title: "Здоровье", caption: "Активность за сегодня") { EmptyView() }
             if store.journal.healthEnabled && health.isAvailable {
-                let layout = textSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 9)) : AnyLayout(HStackLayout(spacing: 9))
-                layout {
-                    metric("Шаги", icon: "figure.walk", value: health.steps, color: Ink.lilac)
-                    metric("Активные ккал", icon: "flame", value: health.activeEnergy, color: Ink.peach)
-                }
-                if health.steps == nil || health.activeEnergy == nil {
-                    Text(health.isReading ? "Обновляем данные…" : "Прочерк означает, что за сегодня нет доступных данных.")
-                        .font(.footnote).foregroundStyle(Ink.muted)
+                if health.isReading && health.steps == nil && health.activeEnergy == nil {
+                    Panel { StatusMessage(text: "Обновляем активность…", loading: true) }
+                } else if health.steps == nil && health.activeEnergy == nil {
+                    HintPanel(icon: "figure.walk", title: "Нет данных за сегодня",
+                              text: "Активность появится после записи шагов или активной энергии в Apple «Здоровье».")
+                } else {
+                    let layout = textSize >= .xxxLarge
+                        ? AnyLayout(VStackLayout(spacing: Theme.Space.sm)) : AnyLayout(HStackLayout(spacing: Theme.Space.sm))
+                    layout {
+                        metric("Шаги", icon: "figure.walk", value: health.steps)
+                        metric("Активные ккал", icon: "flame", value: health.activeEnergy)
+                    }
                 }
             }
             Panel {
                 VStack(alignment: .leading, spacing: 12) {
                     SectionHeading(title: "Apple «Здоровье»")
-                    Text(connectionText).font(.subheadline).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                    if health.isAvailable && store.journal.healthEnabled && health.canWrite {
+                        Label("Подключено", systemImage: "checkmark.circle.fill")
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accent)
+                    }
+                    Text(connectionText).font(.subheadline).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                     if health.isAvailable {
                         if store.journal.healthEnabled {
                             ActionButton(title: "Как изменить разрешения", icon: "gearshape", solid: false) {
@@ -42,7 +50,8 @@ struct HealthView: View {
                             }.disabled(health.isBusy)
                         }
                     }
-                    if let issue = health.issue { Text(issue).font(.footnote).foregroundStyle(Ink.peach) }
+                    if health.isBusy { StatusMessage(text: "Выполняем запрос…", loading: true) }
+                    if let issue = health.issue { StatusMessage(text: issue) }
                 }
             }
             Panel {
@@ -52,10 +61,10 @@ struct HealthView: View {
                         store.change { $0.weeklyGoal = goal }
                     }), in: 1...14)
                         .font(.subheadline)
-                    Text("Прогресс виден на экране «Сегодня».").font(.footnote).foregroundStyle(Ink.muted)
+                    Text("Прогресс виден на экране «Сегодня».").font(.footnote).foregroundStyle(Theme.secondary)
                 }
             }
-            Text("Программы и журнал хранятся на этом устройстве.").font(.footnote).foregroundStyle(Ink.muted)
+            Text("Программы и журнал хранятся на этом устройстве.").font(.footnote).foregroundStyle(Theme.secondary)
         }
         .task { await health.refresh(store) }
         .refreshable { await health.refresh(store) }
@@ -73,13 +82,17 @@ struct HealthView: View {
         return "Завершённые тренировки автоматически сохраняются в «Здоровье»."
     }
 
-    private func metric(_ label: String, icon: String, value: Int?, color: Color) -> some View {
+    private func metric(_ label: String, icon: String, value: Int?) -> some View {
         Panel {
-            VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: icon).foregroundStyle(color).accessibilityHidden(true)
-                Text(value.map(Format.integer) ?? "—").font(.system(.title, design: .rounded, weight: .semibold)).monospacedDigit()
-                Text(label).font(.caption).foregroundStyle(Ink.muted)
-            }.accessibilityElement(children: .combine)
+            VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                Image(systemName: icon).foregroundStyle(Theme.secondary).accessibilityHidden(true)
+                if let value {
+                    MetricValue(title: label, value: Format.integer(value))
+                } else {
+                    Text(label).font(.subheadline).foregroundStyle(Theme.secondary)
+                    Text("Нет данных").font(.headline)
+                }
+            }
         }
     }
 }

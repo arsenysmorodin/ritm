@@ -11,10 +11,12 @@ struct ProgramsView: View {
 
     var body: some View {
         Page {
-            PageHeader(title: "Программы", caption: "Ваш план занятий дома") {
-                Button { editing = Program(name: "", routines: []) } label: {
-                    IconBadge(icon: "plus", size: 46)
-                }.buttonStyle(PressStyle()).accessibilityLabel("Создать программу")
+            PageHeader(title: "Программы", caption: "Тренировочные дни") {
+                if !store.journal.programs.isEmpty {
+                    Button { editing = Program(name: "", routines: []) } label: {
+                        IconBadge(icon: "plus", color: Theme.accent)
+                    }.buttonStyle(PressStyle()).accessibilityLabel("Создать программу")
+                }
             }
             ActionButton(title: "Каталог упражнений", icon: "figure.strengthtraining.traditional", solid: false) { showCatalog = true }
             if store.journal.programs.isEmpty {
@@ -24,15 +26,16 @@ struct ProgramsView: View {
             ForEach(store.journal.programs) { program in
                 let active = store.journal.activeProgramID == program.id
                 Panel {
-                    VStack(alignment: .leading, spacing: 13) {
+                    VStack(alignment: .leading, spacing: Theme.Space.md) {
                         HStack(alignment: .top) {
                             VStack(alignment: .leading, spacing: 5) {
-                                Text(program.name).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                                Text(program.name).font(Theme.sectionTitle)
+                                    .fixedSize(horizontal: false, vertical: true).accessibilityAddTraits(.isHeader)
                                 if active {
                                     Label("Активная программа", systemImage: "checkmark.circle.fill")
-                                        .font(.caption.weight(.semibold)).foregroundStyle(Ink.lilac)
+                                        .font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
                                 } else {
-                                    Text(Format.workouts(program.routines.count)).font(.caption).foregroundStyle(Ink.muted)
+                                    Text(Format.workouts(program.routines.count)).font(.caption).foregroundStyle(Theme.secondary)
                                 }
                             }
                             Spacer(minLength: 5)
@@ -52,8 +55,15 @@ struct ProgramsView: View {
                             }.accessibilityLabel("Действия программы \(program.name)")
                             #endif
                         }
-                        ForEach(program.routines) { routine in
-                            Button { selected = routine } label: { RoutineRow(routine: routine) }.buttonStyle(PressStyle())
+                        if program.routines.isEmpty {
+                            Button("Настроить тренировочные дни") { editing = program }
+                                .font(.subheadline.weight(.semibold)).frame(minHeight: Theme.touch)
+                        } else {
+                            VStack(spacing: Theme.Space.xs) {
+                                ForEach(program.routines) { routine in
+                                    Button { selected = routine } label: { RoutineRow(routine: routine) }.buttonStyle(PressStyle())
+                                }
+                            }
                         }
                     }
                 }
@@ -75,6 +85,10 @@ struct ProgramsView: View {
                     Panel {
                         VStack(alignment: .leading, spacing: 14) {
                             SectionHeading(title: "Упражнения")
+                            if routine.exercises.isEmpty {
+                                Text("Упражнения можно добавить во время занятия или в редакторе дня.")
+                                    .font(.subheadline).foregroundStyle(Theme.secondary)
+                            }
                             ForEach(routine.exercises) { item in
                                 if item.id != routine.exercises.first?.id { Divider() }
                                 NavigationLink {
@@ -84,20 +98,25 @@ struct ProgramsView: View {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(item.name).font(.headline)
                                             Text(planSummary(item, in: routine))
-                                                .font(.subheadline).foregroundStyle(Ink.muted)
+                                                .font(.subheadline).foregroundStyle(Theme.secondary)
                                         }
                                         Spacer(minLength: 6)
-                                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(Ink.lilac)
+                                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.secondary)
                                     }
+                                    .frame(minHeight: Theme.touch).contentShape(Rectangle())
                                 }
                                 .buttonStyle(PressStyle())
                             }
                         }
                     }
                     MuscleMap(muscles: .combined(routine.exercises.map(\.muscles)), title: "Мышцы тренировочного дня")
-                    ActionButton(title: store.journal.activeWorkout == nil ? "Начать тренировку" : "Продолжить текущую", icon: "play.fill", color: Ink.peach) {
-                        pendingStart = routine
-                        selected = nil
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    ActionDock {
+                        ActionButton(title: store.journal.activeWorkout == nil ? "Начать тренировку" : "Продолжить текущую", icon: "play.fill") {
+                            pendingStart = routine
+                            selected = nil
+                        }
                     }
                 }
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { selected = nil } } }
@@ -109,9 +128,9 @@ struct ProgramsView: View {
         } message: { _ in Text("Записи о выполненных тренировках останутся в истории.") }
     }
     private var menuIcon: some View {
-        Image(systemName: "ellipsis").font(.headline).foregroundStyle(Ink.lilac)
-            .frame(width: 44, height: 44)
-            .background(Ink.raised, in: RoundedRectangle(cornerRadius: 12))
+        Image(systemName: "ellipsis").font(.headline).foregroundStyle(Theme.primary)
+            .frame(width: Theme.touch, height: Theme.touch)
+            .background(Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
     }
 }
 
@@ -126,17 +145,17 @@ private func planSummary(_ exercise: ExercisePlan, in routine: Routine) -> Strin
 struct RoutineRow: View {
     let routine: Routine
     var body: some View {
-        HStack(spacing: 11) {
+        HStack(spacing: Theme.Space.md) {
             IconBadge(icon: routine.kind.icon, color: routine.kind.color, size: 39)
             VStack(alignment: .leading, spacing: 3) {
                 Text(routine.name).font(.subheadline.weight(.semibold))
                 Text([routine.weekday?.short, Format.exercises(routine.exercises.count)].compactMap { $0 }.joined(separator: " • "))
-                    .font(.caption).foregroundStyle(Ink.muted)
+                    .font(.caption).foregroundStyle(Theme.secondary)
             }
             Spacer(minLength: 4)
-            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Ink.muted)
-        }.padding(9).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Ink.raised, in: RoundedRectangle(cornerRadius: 12))
+            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondary)
+        }.padding(Theme.Space.sm).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
             .accessibilityElement(children: .combine)
     }
 }
@@ -219,11 +238,11 @@ struct RoutineEditor: View {
                         Button { exercise = item } label: {
                             HStack(spacing: 8) {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(item.name).foregroundStyle(Ink.primary)
-                                    Text(planSummary(item, in: draft)).font(.caption).foregroundStyle(Ink.muted)
+                                    Text(item.name).foregroundStyle(Theme.primary)
+                                    Text(planSummary(item, in: draft)).font(.caption).foregroundStyle(Theme.secondary)
                                 }
                                 Spacer(minLength: 4)
-                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Ink.muted)
+                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.secondary)
                             }
                         }.buttonStyle(PressStyle())
                     }
@@ -235,9 +254,9 @@ struct RoutineEditor: View {
                     ForEach(draft.exerciseBlocks) { item in
                         Button { block = item } label: {
                             VStack(alignment: .leading, spacing: 4) {
-                                Label(item.kind.title, systemImage: item.kind.icon).foregroundStyle(Ink.primary)
+                                Label(item.kind.title, systemImage: item.kind.icon).foregroundStyle(Theme.primary)
                                 Text(draft.exercises.filter { item.exerciseIDs.contains($0.id) }.map(\.name).joined(separator: " · "))
-                                    .font(.caption).foregroundStyle(Ink.muted)
+                                    .font(.caption).foregroundStyle(Theme.secondary)
                             }
                         }
                     }
@@ -415,6 +434,12 @@ struct ExerciseEditor: View {
                     if !fixedSets {
                         Stepper(draft.rest == 0 ? "Без таймера отдыха" : "Отдых: \(draft.rest) сек", value: $draft.rest, in: 0...300, step: 15)
                     }
+                    if validatedTarget == nil {
+                        StatusMessage(text: "Укажите число от 1 до 3600.")
+                    }
+                    if kilograms == nil {
+                        StatusMessage(text: "Укажите вес от 0 до 500 кг.")
+                    }
                 }
                 if draft.unit == .repetitions && ((kilograms ?? 0) > 0 || !drops.isEmpty) { dropSection }
             }
@@ -463,7 +488,7 @@ struct ExerciseEditor: View {
                 let number = (drops.firstIndex { $0.id == id } ?? 0) + 1
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text("Этап \(number)").font(.caption.weight(.semibold)).foregroundStyle(Ink.lilac)
+                        Text("Этап \(number)").font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
                         Spacer()
                         Button(role: .destructive) { drops.removeAll { $0.id == id } } label: {
                             Image(systemName: "trash").frame(minWidth: 44, minHeight: 44)
@@ -490,8 +515,11 @@ struct ExerciseEditor: View {
         } header: {
             Text("Дропсет")
         } footer: {
-            Text(validatedDrops == nil ? "Укажите повторы и вес ниже предыдущего на каждом этапе." : "После основного подхода сразу переходите к следующему весу.")
-                .foregroundStyle(validatedDrops == nil ? Ink.peach : Ink.muted)
+            if validatedDrops == nil {
+                StatusMessage(text: "Укажите число повторов и вес ниже предыдущего на каждом этапе.")
+            } else {
+                Text("После основного подхода сразу переходите к следующему весу.")
+            }
         }
     }
 
@@ -538,7 +566,7 @@ private struct ExerciseReferenceLinks: View {
                 let names = (selection.primary + selection.secondary).map(\.title)
                 if !names.isEmpty {
                     Text(names.joined(separator: ", "))
-                        .font(.caption).foregroundStyle(Ink.muted).lineLimit(2)
+                        .font(.caption).foregroundStyle(Theme.secondary)
                 }
             }
         }

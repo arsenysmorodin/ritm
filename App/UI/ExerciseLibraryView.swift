@@ -28,21 +28,36 @@ struct ExerciseLibraryView: View {
                     ForEach(Muscle.allCases) { Text($0.title).tag(Optional($0)) }
                 }
             }
-            Section(Format.exercises(results.count)) {
-                ForEach(results) { entry in
-                    NavigationLink {
-                        ExerciseDetailView(entry: entry, select: select.map { action in
-                            { action(entry); dismiss() }
-                        })
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(entry.name).font(.headline)
-                            Text(entry.equipment.title).font(.caption).foregroundStyle(Ink.muted)
+            if results.isEmpty {
+                Section {
+                    ContentUnavailableView {
+                        Label("Упражнения не найдены", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("Попробуйте другое название или измените фильтры.")
+                    } actions: {
+                        Button("Очистить поиск и фильтры") {
+                            search = ""
+                            equipment = nil
+                            muscle = nil
                         }
+                        .frame(minHeight: Theme.touch)
                     }
                 }
-                if results.isEmpty {
-                    Text("Попробуйте другой запрос или сбросьте фильтры.").foregroundStyle(Ink.muted)
+            } else {
+                Section(Format.exercises(results.count)) {
+                    ForEach(results) { entry in
+                        NavigationLink {
+                            ExerciseDetailView(entry: entry, select: select.map { action in
+                                { action(entry); dismiss() }
+                            })
+                        } label: {
+                            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                                Text(entry.name).font(.headline)
+                                Text(entry.equipment.title).font(.subheadline).foregroundStyle(Theme.secondary)
+                            }
+                            .frame(minHeight: Theme.touch, alignment: .leading)
+                        }
+                    }
                 }
             }
         }
@@ -89,13 +104,17 @@ private struct ExerciseGuide: View {
                 Panel {
                     VStack(alignment: .leading, spacing: 9) {
                         SectionHeading(title: "Заметка о технике")
-                        Text(note).font(.subheadline).foregroundStyle(Ink.muted)
+                        Text(note).font(.subheadline).foregroundStyle(Theme.secondary)
                     }
                 }
             }
             MuscleMap(muscles: muscles)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if let select {
-                ActionButton(title: "Выбрать упражнение", icon: "plus", action: select)
+                ActionDock {
+                    ActionButton(title: "Выбрать упражнение", icon: "plus", action: select)
+                }
             }
         }
     }
@@ -110,14 +129,14 @@ struct MuscleMap: View {
             VStack(alignment: .leading, spacing: 14) {
                 SectionHeading(title: title)
                 if muscles.isEmpty {
-                    Text("Группы мышц ещё не указаны.").font(.subheadline).foregroundStyle(Ink.muted)
+                    Text("Группы мышц ещё не указаны.").font(.subheadline).foregroundStyle(Theme.secondary)
                 } else {
                     HStack(spacing: 12) {
                         MuscleFigure(rear: false, primary: muscles.primary, secondary: muscles.secondary)
                         MuscleFigure(rear: true, primary: muscles.primary, secondary: muscles.secondary)
                     }
-                    if !muscles.primary.isEmpty { keys("Основные", muscles.primary, Ink.peach) }
-                    if !muscles.secondary.isEmpty { keys("Также работают", muscles.secondary, Ink.lilac) }
+                    if !muscles.primary.isEmpty { keys("Основные", muscles.primary, Theme.accent) }
+                    if !muscles.secondary.isEmpty { keys("Также работают", muscles.secondary, Theme.reference) }
                 }
             }
         }
@@ -125,10 +144,10 @@ struct MuscleMap: View {
 
     private func keys(_ title: String, _ muscles: [Muscle], _ tint: Color) -> some View {
         HStack(alignment: .top, spacing: 9) {
-            Circle().fill(tint).frame(width: 8, height: 8).padding(.top, 4)
+            Circle().fill(tint).frame(width: 8, height: 8).padding(.top, 4).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.caption.weight(.semibold)).foregroundStyle(Ink.primary)
-                Text(muscles.map(\.title).joined(separator: ", ")).font(.caption).foregroundStyle(Ink.muted)
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.primary)
+                Text(muscles.map(\.title).joined(separator: ", ")).font(.subheadline).foregroundStyle(Theme.secondary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -187,19 +206,19 @@ private struct MuscleFigure: View {
                 }
                 let silhouette: [(Double, Double)] = [(50,22),(57,22),(58,29),(66,32),(74,35),(79,45),(81,58),(86,74),(88,83),(84,88),(79,84),(78,76),(73,65),(68,51),(65,62),(67,74),(70,88),(68,104),(65,115),(68,127),(65,141),(70,147),(67,151),(57,151),(56,146),(57,137),(55,124),(56,114),(53,100),(50,88)]
                 for mirror in [false, true] {
-                    context.fill(path(silhouette, mirrored: mirror), with: .color(Ink.raised))
+                    context.fill(path(silhouette, mirrored: mirror), with: .color(Theme.elevated))
                     for (muscle, points) in regions {
-                        var color = Ink.lilac.opacity(0.13)
-                        if primary.contains(muscle) { color = Ink.peach }
-                        else if secondary.contains(muscle) { color = Ink.lilac.opacity(0.77) }
+                        var color = Theme.border
+                        if primary.contains(muscle) { color = Theme.accent }
+                        else if secondary.contains(muscle) { color = Theme.reference }
                         context.fill(path(points, mirrored: mirror), with: .color(color))
                     }
                 }
                 let head = CGRect(x: left + 42 * scale, y: 3 * scale, width: 16 * scale, height: 22 * scale)
-                context.fill(Path(ellipseIn: head), with: .color(Ink.raised))
+                context.fill(Path(ellipseIn: head), with: .color(Theme.elevated))
             }
             .frame(height: 159)
-            Text(rear ? "Сзади" : "Спереди").font(.caption2).foregroundStyle(Ink.muted)
+            Text(rear ? "Сзади" : "Спереди").font(.caption2).foregroundStyle(Theme.secondary)
         }
         .accessibilityHidden(true)
     }

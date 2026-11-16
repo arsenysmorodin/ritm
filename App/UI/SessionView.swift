@@ -6,6 +6,7 @@ struct SessionView: View {
     var onFinish: (WorkoutRecord) -> Void
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var adding = false
     @State private var confirmDiscard = false
     @State private var confirmFinish = false
@@ -13,32 +14,31 @@ struct SessionView: View {
     @State private var remove: LoggedExercise?
     @State private var guide: ExercisePlan?
     @State private var notes = ""
+    @State private var markFeedback = 0
 
     var body: some View {
         NavigationStack {
             if let draft = store.journal.activeWorkout {
+                let next = draft.nextStep
                 Page {
                     PageHeader(title: draft.name, caption: "Тренировка в процессе") { EmptyView() }
                     stopwatch(draft)
-                    if let pulse = draft.pulse, !pulse.isEmpty {
-                        TimelineView(.periodic(from: .now, by: 10)) { context in
-                            PulsePanel(points: pulse, live: true, now: context.date)
-                        }
-                    } else if health.isAvailable && store.journal.healthEnabled {
-                        HintPanel(icon: "heart", title: "Пульс во время занятия", text: "Откройте «Ритм» на Apple Watch для живых замеров. Здесь также видны замеры из Apple «Здоровья» за время тренировки.")
-                    }
                     if draft.exercises.isEmpty {
-                        HintPanel(icon: "dumbbell", title: "С чего начнём?", text: "Добавьте первое упражнение и отмечайте выполненные подходы.")
+                        HintPanel(icon: "dumbbell", title: "Пока нет упражнений", text: "Добавьте упражнение, чтобы записать подходы, повторы и вес.")
                     }
-                    let next = draft.nextStep?.id
-                    ForEach(draft.sections) { section in
-                        if let block = section.block {
-                            blockPanel(section, block: block, next: next)
-                        } else if let exercise = section.exercises.first {
-                            exercisePanel(exercise, next: next)
+                    LazyVStack(alignment: .leading, spacing: Theme.Space.md) {
+                        ForEach(draft.sections) { section in
+                            if let block = section.block {
+                                blockPanel(section, block: block, next: next?.id)
+                            } else if let exercise = section.exercises.first {
+                                exercisePanel(exercise, next: next?.id)
+                            }
                         }
                     }
-                    ActionButton(title: "Добавить упражнение", icon: "plus", solid: false) { adding = true }
+                    if !draft.exercises.isEmpty {
+                        ActionButton(title: "Добавить упражнение", icon: "plus", solid: false) { adding = true }
+                    }
+                    pulseDetails(draft)
                     Panel {
                         VStack(alignment: .leading, spacing: 7) {
                             Text("Заметка").font(.headline)
@@ -52,7 +52,8 @@ struct SessionView: View {
                         .font(.subheadline).frame(minHeight: 44)
                 }
                 .scrollDismissesKeyboard(.interactively)
-                .safeAreaInset(edge: .bottom, spacing: 0) { controls(draft) }
+                .safeAreaInset(edge: .bottom, spacing: 0) { controls(draft, next: next) }
+                .sensoryFeedback(.selection, trigger: markFeedback)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Свернуть") { dismiss() } }
                 }
@@ -102,23 +103,64 @@ struct SessionView: View {
 
     private func stopwatch(_ draft: ActiveWorkout) -> some View {
         Panel {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Время занятия").font(.caption).foregroundStyle(Ink.muted)
-                    TimelineView(.periodic(from: draft.startedAt, by: 1)) { context in
-                        Text(Format.clock(Int(context.date.timeIntervalSince(draft.startedAt))))
-                            .font(.system(.title, design: .rounded, weight: .semibold)).monospacedDigit()
-                            .accessibilityLabel("Время: \(Format.duration(max(0, Int(context.date.timeIntervalSince(draft.startedAt)))))")
+            VStack(alignment: .leading, spacing: Theme.Space.md) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: Theme.Space.md) {
+                        elapsed(draft)
+                        Spacer(minLength: Theme.Space.xs)
+                        completed(draft)
+                    }
+                    VStack(alignment: .leading, spacing: Theme.Space.md) {
+                        elapsed(draft)
+                        completed(draft)
                     }
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 4) {
-                    let hasDrops = draft.exercises.contains { $0.plan.drops?.isEmpty == false }
-                    Text(hasDrops ? "Этапы" : "Подходы").font(.caption).foregroundStyle(Ink.muted)
-                    Text("\(draft.marked) / \(draft.total)").font(.system(.title2, design: .rounded, weight: .semibold)).monospacedDigit()
-                        .foregroundStyle(Ink.lilac)
+                if draft.total > 0 {
+                    SwiftUI.ProgressView(value: Double(draft.marked), total: Double(draft.total))
+                        .accessibilityHidden(true)
                 }
             }
+        }
+    }
+
+    private func elapsed(_ draft: ActiveWorkout) -> some View {
+        TimelineView(.periodic(from: draft.startedAt, by: 1)) { context in
+            let seconds = max(0, Int(context.date.timeIntervalSince(draft.startedAt)))
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                Text("Время").font(.subheadline).foregroundStyle(Theme.secondary)
+                Text(Format.clock(seconds)).font(Theme.timer).fixedSize()
+                    .accessibilityLabel(Format.spokenTime(seconds))
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func completed(_ draft: ActiveWorkout) -> some View {
+        let hasDrops = draft.exercises.contains { $0.plan.drops?.isEmpty == false }
+        return VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            Text(hasDrops ? "Этапы" : "Подходы").font(.subheadline).foregroundStyle(Theme.secondary)
+            Text("\(draft.marked) / \(draft.total)").font(Theme.timer).fixedSize()
+                .foregroundStyle(Theme.accent)
+                .contentTransition(.numericText(value: Double(draft.marked)))
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: draft.marked)
+                .accessibilityLabel("\(draft.marked) из \(draft.total)")
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private func pulseDetails(_ draft: ActiveWorkout) -> some View {
+        if let pulse = draft.pulse, let last = pulse.last {
+            TimelineView(.periodic(from: .now, by: 10)) { context in
+                DisclosureGroup {
+                    PulsePanel(points: pulse, live: true, now: context.date).padding(.top, Theme.Space.sm)
+                } label: {
+                    Label(context.date.timeIntervalSince(last.date) < 30 ? "Пульс: \(last.bpm) уд/мин" : "Пульс за тренировку",
+                          systemImage: "heart")
+                        .font(.subheadline.weight(.semibold)).frame(minHeight: Theme.touch)
+                }
+            }
+        } else if health.isAvailable && store.journal.healthEnabled {
+            HintPanel(icon: "heart", title: "Пульс во время занятия", text: "Для живых замеров откройте «Ритм» на Apple Watch. Замеры из Apple «Здоровья» появятся здесь автоматически.")
         }
     }
 
@@ -127,15 +169,15 @@ struct SessionView: View {
             VStack(alignment: .leading, spacing: 9) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(exercise.plan.name).font(.headline).accessibilityAddTraits(.isHeader)
+                        Text(exercise.plan.name).font(Theme.sectionTitle).accessibilityAddTraits(.isHeader)
                         Text("\(exercise.plan.sets) × \(exercise.plan.target) \(exercise.plan.unit.short)")
-                            .font(.caption).foregroundStyle(Ink.muted)
+                            .font(.caption).foregroundStyle(Theme.secondary)
                     }
                     Spacer()
                     exerciseMenu(exercise)
                 }
                 ForEach(exercise.steps) { step in
-                    stepRow(step, grouped: false, next: next == step.id && exercise.plan.drops?.isEmpty == false)
+                    stepRow(step, grouped: false, next: next == step.id)
                 }
             }
         }
@@ -145,19 +187,20 @@ struct SessionView: View {
         Panel {
             VStack(alignment: .leading, spacing: 11) {
                 HStack {
-                    Label(block.kind.title, systemImage: block.kind.icon).font(.headline).foregroundStyle(Ink.lilac)
+                    Label(block.kind.title, systemImage: block.kind.icon).font(Theme.sectionTitle)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Menu {
                         ForEach(section.exercises) { exercise in
                             Button(exercise.plan.name) { guide = exercise.plan }
                         }
                     } label: {
-                        Image(systemName: "figure.strengthtraining.traditional").frame(width: 44, height: 44)
+                        Image(systemName: "figure.strengthtraining.traditional").frame(width: Theme.touch, height: Theme.touch)
                     }
                     .accessibilityLabel("Техника упражнений")
                 }
                 ForEach(section.rounds) { round in
-                    Text("Раунд \(round.id)").font(.caption.weight(.semibold)).foregroundStyle(Ink.muted)
+                    Text("Раунд \(round.id)").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondary)
                     ForEach(round.steps) { step in stepRow(step, grouped: true, next: next == step.id) }
                 }
             }
@@ -175,7 +218,7 @@ struct SessionView: View {
             }
             Button("Удалить упражнение", systemImage: "trash", role: .destructive) { remove = exercise }
         } label: {
-            Image(systemName: "ellipsis").frame(width: 44, height: 44)
+            Image(systemName: "ellipsis").frame(width: Theme.touch, height: Theme.touch)
         }
         .accessibilityLabel("Действия: \(exercise.plan.name)")
     }
@@ -187,7 +230,9 @@ struct SessionView: View {
         let summary = [quantity, weight].filter { !$0.isEmpty }.joined(separator: " · ")
         let repetitions = step.unit == .repetitions
         let label = grouped && set.dropStage == nil ? step.name : step.title
-        let layout = repetitions && dynamicTypeSize.isAccessibilitySize
+        let stepName = spokenName(step)
+        let stacked = repetitions && dynamicTypeSize >= .xxxLarge
+        let layout = stacked
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
             : AnyLayout(HStackLayout(spacing: 6))
         return layout {
@@ -197,46 +242,68 @@ struct SessionView: View {
                 HStack(spacing: 5) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(set.dropStage != nil && grouped ? step.name + " · " + label : label)
-                            .font(.subheadline.weight(.medium)).foregroundStyle(set.dropStage != nil ? Ink.lilac : Ink.primary)
+                            .font(.subheadline.weight(next ? .semibold : .medium))
+                            .foregroundStyle(Theme.primary)
                         if !repetitions || !weight.isEmpty {
-                            Text(repetitions ? weight : summary).font(.caption).foregroundStyle(Ink.muted)
+                            Text(repetitions ? weight : summary).font(.subheadline.weight(.medium)).monospacedDigit()
+                                .foregroundStyle(Theme.secondary)
                         }
                     }
                     .fixedSize(horizontal: false, vertical: true)
-                    Image(systemName: "pencil").font(.caption).foregroundStyle(Ink.muted)
+                    Image(systemName: "pencil").font(.caption).foregroundStyle(Theme.secondary)
                 }
                 .padding(.vertical, 5)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: Theme.touch, alignment: .leading)
             }
             .buttonStyle(PressStyle())
-            .accessibilityLabel("Изменить \(step.title.lowercased()), \(step.name), \(summary)")
+            .accessibilityLabel("Изменить: \(stepName), \(step.name), \(summary)")
             HStack(spacing: 6) {
                 if repetitions {
-                    RepetitionControl(value: set.value, context: "\(step.name), \(step.title.lowercased())") { change in
+                    RepetitionControl(value: set.value, context: "\(step.name), \(stepName)") { change in
                         adjustRepetitions(step, by: change)
                     } count: {
                         Text("\(set.value)")
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(Ink.primary)
+                            .font(Theme.number).foregroundStyle(Theme.primary)
                             .frame(minWidth: 30)
+                            .contentTransition(.numericText(value: Double(set.value)))
+                            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: set.value)
                             .accessibilityLabel(quantity)
                     }
                 }
                 Button {
-                    store.toggleSet(exerciseID: step.exerciseID, setID: set.id)
+                    toggle(step)
                 } label: {
                     Image(systemName: set.complete ? "checkmark.circle.fill" : "circle")
-                        .font(.title2).foregroundStyle(set.complete ? Ink.peach : Ink.lilac)
-                        .frame(width: 44, height: 44)
+                        .font(.title2).foregroundStyle(set.complete ? Theme.accent : Theme.secondary)
+                        .frame(width: Theme.touch, height: Theme.touch)
                 }
                 .buttonStyle(PressStyle())
-                .accessibilityLabel((set.complete ? "Снять отметку, " : "Отметить ") + step.title.lowercased() + ", " + step.name)
+                .accessibilityLabel((set.complete ? "Снять отметку: " : "Отметить: ") + stepName + ", " + step.name)
                 .accessibilityHint(next ? "Следующий этап тренировки" : "")
+                .frame(maxWidth: stacked ? .infinity : nil, alignment: .trailing)
             }
         }
-        .padding(.leading, set.dropStage == nil ? 10 : 18)
-        .background(Ink.raised, in: RoundedRectangle(cornerRadius: 10))
+        .padding(.leading, set.dropStage == nil ? Theme.Space.sm : Theme.Space.lg)
+        .padding(.trailing, Theme.Space.xs)
+        .padding(.vertical, Theme.Space.xs)
+        .background(next ? Theme.accent.opacity(0.07) : Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
         .overlay {
-            if next { RoundedRectangle(cornerRadius: 10).strokeBorder(Ink.lilac.opacity(0.65), lineWidth: 1).allowsHitTesting(false) }
+            RoundedRectangle(cornerRadius: Theme.Radius.control)
+                .strokeBorder(next ? Theme.accent : Theme.border, lineWidth: next ? 2 : 1)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func spokenName(_ step: WorkoutStep) -> String {
+        step.set.dropStage.map { "подход \(step.round), дроп \($0)" } ?? step.title.lowercased()
+    }
+
+    private func toggle(_ step: WorkoutStep) {
+        store.toggleSet(exerciseID: step.exerciseID, setID: step.id)
+        if !step.set.complete,
+           store.journal.activeWorkout?.exercises.first(where: { $0.id == step.exerciseID })?
+            .sets.first(where: { $0.id == step.id })?.complete == true {
+            markFeedback += 1
         }
     }
 
@@ -250,30 +317,75 @@ struct SessionView: View {
         }
     }
 
-    private func controls(_ draft: ActiveWorkout) -> some View {
-        VStack(spacing: 7) {
+    private func controls(_ draft: ActiveWorkout, next: WorkoutStep?) -> some View {
+        ActionDock {
             if let rest = draft.restUntil {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let seconds = draft.secondsLeft(at: context.date)
-                    if seconds > 0 {
-                        HStack {
-                            Image(systemName: "timer").foregroundStyle(Ink.peach)
-                            Text("Отдых").font(.subheadline)
-                            Text(Format.clock(seconds)).font(.system(.headline, design: .rounded)).monospacedDigit()
-                            Spacer()
-                            Button("Пропустить") { store.updateWorkout { $0.restUntil = nil } }.font(.subheadline.weight(.medium)).frame(minHeight: 44)
-                        }.padding(.horizontal, 5)
+                    VStack(spacing: Theme.Space.sm) {
+                        if seconds > 0 {
+                            restControl(seconds).accessibilitySortPriority(1)
+                            finishButton(draft, solid: false)
+                        } else {
+                            workoutActions(draft, next: next)
+                        }
                     }
-                }.id(rest)
+                    .accessibilityElement(children: .contain)
+                }
+                .id(rest)
+            } else {
+                workoutActions(draft, next: next)
             }
-            ActionButton(title: "Завершить тренировку", icon: "checkmark", color: Ink.peach) {
-                if draft.marked < draft.total { confirmFinish = true } else { finish() }
-            }.disabled(draft.marked == 0)
         }
-        .padding(.horizontal, 21).padding(.top, 7).padding(.bottom, 8)
-        .frame(maxWidth: 602).frame(maxWidth: .infinity)
-        .background(Ink.paper)
-        .overlay(alignment: .top) { Divider() }
+    }
+
+    @ViewBuilder private func workoutActions(_ draft: ActiveWorkout, next: WorkoutStep?) -> some View {
+        if let next {
+            Text("Следующий: \(next.name), \(next.title.lowercased())")
+                .font(.subheadline).foregroundStyle(Theme.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                .accessibilityHidden(true)
+            ActionButton(title: next.set.dropStage == nil ? "Отметить подход" : "Отметить этап", icon: "checkmark") {
+                guard store.journal.activeWorkout?.nextStep?.id == next.id else { return }
+                toggle(next)
+            }
+            .accessibilityHint("\(next.name), \(spokenName(next)), \(next.set.value) \(next.unit.short)")
+            if draft.marked > 0 { finishButton(draft, solid: false) }
+        } else if draft.exercises.isEmpty {
+            ActionButton(title: "Добавить упражнение", icon: "plus") { adding = true }
+        } else {
+            finishButton(draft, solid: true)
+        }
+    }
+
+    private func restControl(_ seconds: Int) -> some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Theme.Space.xs))
+            : AnyLayout(HStackLayout(spacing: Theme.Space.sm))
+        return layout {
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                Label("Отдых", systemImage: "timer").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.warning)
+                Text(Format.clock(seconds)).font(Theme.timer)
+                    .accessibilityLabel(Format.spokenTime(seconds))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            Button("Пропустить отдых") { store.updateWorkout { $0.restUntil = nil } }
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .frame(minHeight: Theme.touch)
+        }
+        .padding(Theme.Space.sm)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+    }
+
+    private func finishButton(_ draft: ActiveWorkout, solid: Bool) -> some View {
+        ActionButton(title: "Завершить тренировку", icon: "stop.fill", solid: solid) {
+            if draft.marked < draft.total { confirmFinish = true } else { finish() }
+        }
+        .disabled(draft.marked == 0)
     }
 
     private func finish() {
@@ -315,6 +427,12 @@ private struct SetEditor: View {
                     TextField(selection.unit.label, text: $value).numericKeyboard().accessibilityLabel(selection.unit.label)
                 }
                 TextField("Вес, кг", text: $weight).numericKeyboard(decimal: true).accessibilityLabel("Вес в килограммах")
+                    if !exerciseQuantityRange.contains(Int(value.trimmed) ?? 0) {
+                        StatusMessage(text: "Укажите число от 1 до 3600.")
+                    }
+                    if validWeight(weight) == nil {
+                        StatusMessage(text: "Укажите вес от 0 до 500 кг.")
+                    }
             }
             .formTint()
             .navigationTitle(selection.set.dropStage.map { "Дроп \($0)" } ?? "Подход \(selection.index)")

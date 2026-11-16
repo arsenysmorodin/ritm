@@ -18,17 +18,17 @@ struct TechniqueCard: View {
                             Text(frame.label)
                                 .font(.caption.weight(.semibold))
                                 .multilineTextAlignment(.center)
-                                .foregroundStyle(Ink.lilac)
+                                .foregroundStyle(Theme.primary)
                         }
                         .padding(8)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .background(Ink.raised, in: RoundedRectangle(cornerRadius: 13))
+                        .background(Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
                         .accessibilityElement(children: .combine)
                     }
                 }
                 Text(preset.hint)
                     .font(.subheadline)
-                    .foregroundStyle(Ink.muted)
+                    .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -52,20 +52,20 @@ private struct TechniqueDrawing: View {
                 context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: width * scale, lineCap: .round, lineJoin: .round))
             }
 
-            line([(7, 94), (103, 94)], color: Ink.lilac.opacity(0.25), width: 1)
-            for prop in frame.props { line(prop, color: Ink.muted, width: 2.4) }
-            if let band = frame.band { line(band, color: Ink.lilac, width: 1.5) }
-            line(frame.pose.rearLeg, color: Ink.lilac.opacity(0.60), width: 4)
-            line(frame.pose.rearArm, color: Ink.lilac.opacity(0.60), width: 3.6)
-            line(frame.pose.torso, color: Ink.peach, width: 8)
-            line(frame.pose.frontLeg, color: Ink.peach, width: 4.6)
-            line(frame.pose.frontArm, color: Ink.peach, width: 4)
+            line([(7, 94), (103, 94)], color: Theme.border, width: 1)
+            for prop in frame.props { line(prop, color: Theme.secondary, width: 2.4) }
+            if let band = frame.band { line(band, color: Theme.accent, width: 1.5) }
+            line(frame.pose.rearLeg, color: Theme.secondary, width: 4)
+            line(frame.pose.rearArm, color: Theme.secondary, width: 3.6)
+            line(frame.pose.torso, color: Theme.reference, width: 8)
+            line(frame.pose.frontLeg, color: Theme.reference, width: 4.6)
+            line(frame.pose.frontArm, color: Theme.reference, width: 4)
             let head = point(frame.pose.head)
             context.fill(Path(ellipseIn: CGRect(x: head.x - 5.3 * scale, y: head.y - 5.3 * scale,
-                                                width: 10.6 * scale, height: 10.6 * scale)), with: .color(Ink.peach))
+                                                width: 10.6 * scale, height: 10.6 * scale)), with: .color(Theme.reference))
             if frame.hasWeights {
                 for hand in [frame.pose.rearArm.last, frame.pose.frontArm.last].compactMap({ $0 }) {
-                    line([(hand.x - 3.7, hand.y), (hand.x + 3.7, hand.y)], color: Ink.primary, width: 2.4)
+                    line([(hand.x - 3.7, hand.y), (hand.x + 3.7, hand.y)], color: Theme.primary, width: 2.4)
                 }
             }
         }

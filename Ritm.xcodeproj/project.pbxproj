@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D40000000000000000000011 /* RitmTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40000000000000000000001 /* RitmTheme.swift */; };
+		D40000000000000000000012 /* RitmTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40000000000000000000001 /* RitmTheme.swift */; };
+		D40000000000000000000013 /* RitmTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40000000000000000000001 /* RitmTheme.swift */; };
+		D40000000000000000000021 /* Theme.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D40000000000000000000002 /* Theme.xcassets */; };
+		D40000000000000000000022 /* Theme.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D40000000000000000000002 /* Theme.xcassets */; };
+		D40000000000000000000023 /* Theme.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D40000000000000000000002 /* Theme.xcassets */; };
 		DA7A00000000000000000017 /* RitmApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000001 /* RitmApp.swift */; };
 		DA7A00000000000000000018 /* HealthConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000002 /* HealthConnection.swift */; };
 		DA7A00000000000000000019 /* JournalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7A00000000000000000003 /* JournalStore.swift */; };
@@ -41,6 +47,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		D40000000000000000000001 /* RitmTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RitmTheme.swift; sourceTree = "<group>"; };
+		D40000000000000000000002 /* Theme.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Theme.xcassets; sourceTree = "<group>"; };
 		DA7A00000000000000000001 /* RitmApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RitmApp.swift; sourceTree = "<group>"; };
 		DA7A00000000000000000002 /* HealthConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthConnection.swift; sourceTree = "<group>"; };
 		DA7A00000000000000000003 /* JournalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStore.swift; sourceTree = "<group>"; };
@@ -143,6 +151,8 @@
 		DA7A00000000000000000013 /* Config */ = {
 			isa = PBXGroup;
 			children = (
+				D40000000000000000000001 /* RitmTheme.swift */,
+				D40000000000000000000002 /* Theme.xcassets */,
 				C20000000000000000000034 /* Shared.xcconfig */,
 				C20000000000000000000033 /* Health-Widgets.entitlements */,
 				C20000000000000000000032 /* Widgets.entitlements */,
@@ -256,11 +266,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				DA7A00000000000000000022 /* Assets.xcassets in Resources */,
+				D40000000000000000000021 /* Theme.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		C10000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000007,); runOnlyForDeploymentPostprocessing = 0; };
-		C20000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		C10000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000007, D40000000000000000000022,); runOnlyForDeploymentPostprocessing = 0; };
+		C20000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (D40000000000000000000023,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -268,6 +279,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D40000000000000000000011 /* RitmTheme.swift in Sources */,
 				B10000000000000000000008 /* WidgetSnapshot.swift in Sources */,
 				B10000000000000000000007 /* WatchLink.swift in Sources */,
 				B10000000000000000000006 /* PulsePanel.swift in Sources */,
@@ -292,8 +304,8 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		C10000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000020, C10000000000000000000021, C10000000000000000000022, C10000000000000000000023,); runOnlyForDeploymentPostprocessing = 0; };
-		C20000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C20000000000000000000020, C20000000000000000000021,); runOnlyForDeploymentPostprocessing = 0; };
+		C10000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000020, C10000000000000000000021, C10000000000000000000022, C10000000000000000000023, D40000000000000000000012,); runOnlyForDeploymentPostprocessing = 0; };
+		C20000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C20000000000000000000020, C20000000000000000000021, D40000000000000000000013,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXContainerItemProxy section */

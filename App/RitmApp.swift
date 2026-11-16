@@ -18,7 +18,6 @@ import SwiftUI
     var body: some Scene {
         WindowGroup {
             RootView(store: store, health: health, watch: watch)
-                .preferredColorScheme(.dark)
                 #if os(macOS)
                 .frame(minWidth: 360, minHeight: 620)
                 #endif
@@ -63,15 +62,19 @@ struct RootView: View {
                     HealthView(store: store, health: health)
                         .tabItem { Label("Здоровье", systemImage: "heart") }.tag(Tab.health)
                 }
+                .storageAlert(store)
             } else {
                 Page {
-                    HintPanel(icon: "externaldrive.badge.exclamationmark", title: "Журнал недоступен", text: "Исходный файл остался на устройстве. Попробуйте открыть журнал ещё раз.")
+                    PageHeader(title: "Журнал недоступен", caption: "Локальные данные") { EmptyView() }
+                    Panel {
+                        StatusMessage(text: store.error ?? "Исходный файл остался на устройстве. Попробуйте открыть журнал ещё раз.")
+                    }
                     ActionButton(title: "Открыть журнал", icon: "arrow.clockwise") { store.reload() }
                 }
             }
         }
-        .foregroundStyle(Ink.primary)
-        .tint(Ink.lilac)
+        .foregroundStyle(Theme.primary)
+        .tint(Theme.accent)
         .modifier(WorkoutPresentation(show: $showWorkout) {
             SessionView(store: store, health: health) { record in
                 tab = .history
@@ -82,7 +85,7 @@ struct RootView: View {
                         store.mergePulse(points, workoutID: record.id)
                     }
                 }
-            }.tint(Ink.lilac)
+            }.tint(Theme.accent)
         })
         .onChange(of: scene, initial: true) { _, phase in
             if phase == .active {
@@ -124,7 +127,6 @@ struct RootView: View {
                 try? await Task.sleep(for: .seconds(10))
             }
         }
-        .storageAlert(store)
     }
 
     private func start(_ routine: Routine?) {

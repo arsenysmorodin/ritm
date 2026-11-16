@@ -18,7 +18,6 @@
     <key>NSHealthUpdateUsageDescription</key><string>Ритм сохраняет завершённые домашние тренировки в Apple «Здоровье».</string>
     <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
     <key>UILaunchScreen</key><dict><key>UIColorName</key><string>LaunchBackground</string></dict>
-    <key>UIStatusBarStyle</key><string>UIStatusBarStyleLightContent</string>
     <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
 </dict>
 </plist>

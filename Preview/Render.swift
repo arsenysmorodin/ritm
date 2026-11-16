@@ -2,6 +2,9 @@ import AppKit
 import SwiftUI
 
 @main struct Render {
+    private static let appearance: ColorScheme = ProcessInfo.processInfo.environment["RITM_PREVIEW_APPEARANCE"] == "light" ? .light : .dark
+    private static let largeText = ProcessInfo.processInfo.environment["RITM_PREVIEW_TEXT_SIZE"] == "accessibility"
+
     @MainActor static func main() throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "RitmPreview-\(UUID())")
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -45,9 +48,10 @@ import SwiftUI
 
     @MainActor private static func write<V: View>(_ layout: V, to output: URL) throws {
         let styled = layout.padding(22)
-            .background(Color(red: 0.09, green: 0.082, blue: 0.13))
-            .tint(Ink.lilac).foregroundStyle(Ink.primary)
-            .environment(\.colorScheme, .dark)
+            .background(Theme.elevated)
+            .tint(Theme.accent).foregroundStyle(Theme.primary)
+            .environment(\.colorScheme, appearance)
+            .environment(\.dynamicTypeSize, largeText ? .accessibility3 : .large)
         let renderer = ImageRenderer(content: styled)
         renderer.scale = 1.5
         guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
@@ -67,23 +71,23 @@ import SwiftUI
                 Image(systemName: "battery.100percent")
             }
             .font(.system(size: 13)).padding(.horizontal, 26).frame(height: 39)
-            content().frame(height: 682, alignment: .top).clipped()
-            Divider().overlay(Ink.line)
+            content().frame(height: largeText ? 1320 : 750, alignment: .top).clipped()
+            Divider().overlay(Theme.border)
             HStack(spacing: 0) {
                 ForEach([( "Сегодня", "house" ), ( "Программы", "square.stack" ), ( "История", "clock.arrow.circlepath" ), ( "Здоровье", "heart" )], id: \.0) { item in
                     VStack(spacing: 5) {
                         Image(systemName: item.1).font(.system(size: 17, weight: .medium))
                         Text(item.0).font(.system(size: 10, weight: .medium))
                     }
-                    .foregroundStyle(tab == item.0 ? Ink.lilac : Ink.muted)
+                    .foregroundStyle(tab == item.0 ? Theme.accent : Theme.secondary)
                     .frame(maxWidth: .infinity)
                 }
             }
             .frame(height: 43)
-            Capsule().fill(Ink.primary).frame(width: 105, height: 4).padding(.top, 7).padding(.bottom, 6)
+            Capsule().fill(Theme.primary).frame(width: 105, height: 4).padding(.top, 7).padding(.bottom, 6)
         }
-        .frame(width: 360).background(Ink.paper)
+        .frame(width: largeText ? 320 : 360).background(Theme.background)
         .clipShape(RoundedRectangle(cornerRadius: 29))
-        .overlay { RoundedRectangle(cornerRadius: 29).strokeBorder(Ink.lilac.opacity(0.19), lineWidth: 1) }
+        .overlay { RoundedRectangle(cornerRadius: 29).strokeBorder(Theme.border) }
     }
 }

@@ -214,7 +214,6 @@ private struct WatchHome: View {
     @State private var kind: WorkoutKind = .strength
     @State private var confirmSave = false
     @State private var chooseKind = false
-    private let peach = Color(red: 1, green: 0.766, blue: 0.66)
 
     var body: some View {
         ScrollView {
@@ -225,7 +224,7 @@ private struct WatchHome: View {
                     heading(activity.kind.title)
                     Text(activity.startedAt, style: .timer).font(.title3.monospacedDigit())
                     pulse
-                    Button("Завершить", systemImage: "checkmark") { confirmSave = true }.tint(peach)
+                    Button("Завершить", systemImage: "checkmark") { confirmSave = true }.tint(Theme.accent)
                 } else {
                     heading("Тренировка дома")
                     Button { chooseKind = true } label: {
@@ -237,16 +236,19 @@ private struct WatchHome: View {
                     }
                     .accessibilityLabel("Тип тренировки")
                     .accessibilityValue(kind.title)
-                    Button("Начать", systemImage: "play.fill") { Task { await workout.start(kind) } }.tint(peach)
+                    Button("Начать", systemImage: "play.fill") { Task { await workout.start(kind) } }.tint(Theme.accent)
                     Text("Чтобы отмечать подходы с часов, начните программу на iPhone.").font(.footnote).foregroundStyle(.secondary)
                 }
                 if let message = workout.message { Text(message).font(.footnote).foregroundStyle(.secondary) }
             }
             .padding(.horizontal, 5)
         }
+        .background(Theme.background)
+        .foregroundStyle(Theme.primary)
+        .tint(Theme.accent)
         .navigationTitle("Ритм")
         .disabled(workout.busy)
-        .overlay { if workout.busy { ProgressView() } }
+        .overlay { if workout.busy { ProgressView("Загрузка…") } }
         .task { await workout.recover() }
         .onChange(of: workout.link.companion) { _, snapshot in
             if let active = workout.context, active.linked,
@@ -269,7 +271,7 @@ private struct WatchHome: View {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 if rest > context.date {
                     Label { Text(timerInterval: context.date...rest, countsDown: true) } icon: { Image(systemName: "timer") }
-                        .font(.headline.monospacedDigit()).foregroundStyle(peach)
+                        .font(.headline.monospacedDigit()).foregroundStyle(Theme.warning)
                 }
             }
         }
@@ -285,18 +287,18 @@ private struct WatchHome: View {
         } else if value.healthEnabled {
             Button("Измерять пульс", systemImage: "heart.fill") {
                 Task { await workout.start(WorkoutKind(rawValue: value.kind) ?? .strength, phone: value) }
-            }.tint(peach)
+            }.tint(Theme.accent)
         }
     }
 
     private func heading(_ title: String) -> some View {
-        Text(title).font(.headline).foregroundStyle(peach)
+        Text(title).font(.headline).accessibilityAddTraits(.isHeader)
     }
 
     @ViewBuilder private var pulse: some View {
         if let data = PulseSummary(workout.points) {
             VStack(alignment: .leading, spacing: 3) {
-                Label("\(data.latest) уд/мин", systemImage: "heart.fill").font(.title3.monospacedDigit()).foregroundStyle(peach)
+                Label("\(data.latest) уд/мин", systemImage: "heart.fill").font(.title3.monospacedDigit()).foregroundStyle(Theme.reference)
                 Text("Средний \(data.average) · пик \(data.maximum)").font(.footnote).foregroundStyle(.secondary)
             }.privacySensitive()
         } else {

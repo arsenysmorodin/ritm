@@ -1,18 +1,5 @@
 import SwiftUI
 
-// Dark aubergine, lavender highlights and apricot used only for action or effort.
-enum Ink {
-    static let paper = Color(red: 0.066, green: 0.060, blue: 0.100)
-    static let panel = Color(red: 0.108, green: 0.098, blue: 0.156)
-    static let raised = Color(red: 0.157, green: 0.141, blue: 0.220)
-    static let line = Color.white.opacity(0.105)
-    static let primary = Color(red: 0.975, green: 0.954, blue: 1)
-    static let muted = Color(red: 0.685, green: 0.661, blue: 0.759)
-    static let lilac = Color(red: 0.851, green: 0.799, blue: 1)
-    static let peach = Color(red: 1, green: 0.766, blue: 0.660)
-    static let onAccent = Color(red: 0.147, green: 0.101, blue: 0.205)
-}
-
 struct Page<Content: View>: View {
     @ViewBuilder let content: Content
 
@@ -20,20 +7,20 @@ struct Page<Content: View>: View {
         #if RITM_PREVIEW
         contentLayout.fixedSize(horizontal: false, vertical: true)
             .frame(maxHeight: .infinity, alignment: .top).clipped()
-            .background(Ink.paper)
+            .background(Theme.background)
         #else
         ScrollView { contentLayout }
             .scrollIndicators(.hidden)
-            .background(Ink.paper.ignoresSafeArea())
+            .background(Theme.background.ignoresSafeArea())
         #endif
     }
 
     private var contentLayout: some View {
-        VStack(alignment: .leading, spacing: 22) { content }
-            .frame(maxWidth: 560)
-            .padding(.horizontal, 21)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
+        VStack(alignment: .leading, spacing: Theme.Space.section) { content }
+            .frame(maxWidth: Theme.contentWidth)
+            .padding(.horizontal, Theme.Space.gutter)
+            .padding(.top, Theme.Space.md)
+            .padding(.bottom, Theme.Space.section)
             .frame(maxWidth: .infinity)
     }
 }
@@ -42,28 +29,34 @@ struct PageHeader<Trailing: View>: View {
     let title: String
     let caption: String
     @ViewBuilder var trailing: Trailing
-    @ScaledMetric(relativeTo: .largeTitle) private var titleSize = 39.0
+    @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.system(size: titleSize, weight: .semibold)).tracking(-1.7).accessibilityAddTraits(.isHeader)
-                Text(caption).font(.subheadline).foregroundStyle(Ink.muted)
+        let layout = textSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Theme.Space.sm))
+            : AnyLayout(HStackLayout(spacing: Theme.Space.md))
+        layout {
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                Text(title).font(Theme.screenTitle).accessibilityAddTraits(.isHeader)
+                Text(caption).font(.subheadline).foregroundStyle(Theme.secondary)
             }
-            Spacer(minLength: 4)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
             trailing
         }
     }
 }
 
 struct Panel<Content: View>: View {
-    var padding: CGFloat = 16
+    var padding: CGFloat = Theme.Space.lg
     @ViewBuilder var content: Content
     var body: some View {
         content.padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Ink.panel, in: RoundedRectangle(cornerRadius: 19))
-            .overlay { RoundedRectangle(cornerRadius: 19).strokeBorder(Ink.line, lineWidth: 1).allowsHitTesting(false) }
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.panel))
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.Radius.panel).strokeBorder(Theme.border).allowsHitTesting(false)
+            }
     }
 }
 
@@ -71,7 +64,6 @@ struct ActionButton: View {
     let title: String
     let icon: String
     var solid = true
-    var color = Ink.lilac
     let action: () -> Void
     @Environment(\.isEnabled) private var enabled
 
@@ -79,13 +71,60 @@ struct ActionButton: View {
         Button(action: action) {
             Label(title, systemImage: icon)
                 .font(.system(.subheadline, weight: .semibold))
-                .foregroundStyle(solid ? Ink.onAccent : color)
-                .frame(maxWidth: .infinity, minHeight: 49)
-                .padding(.horizontal, 12)
-                .background(solid ? color : Ink.raised, in: RoundedRectangle(cornerRadius: 13))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(solid && enabled ? Theme.onAccent : enabled ? Theme.primary : Theme.secondary)
+                .padding(.horizontal, Theme.Space.md)
+                .padding(.vertical, Theme.Space.sm)
+                .frame(maxWidth: .infinity, minHeight: Theme.actionHeight)
+                .background(solid && enabled ? Theme.accent : Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
         }
         .buttonStyle(PressStyle())
-        .opacity(enabled ? 1 : 0.47)
+    }
+}
+
+struct ActionDock<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: Theme.Space.sm) { content }
+            .frame(maxWidth: Theme.contentWidth)
+            .padding(.horizontal, Theme.Space.gutter)
+            .padding(.vertical, Theme.Space.sm)
+            .frame(maxWidth: .infinity)
+            .background(.regularMaterial)
+            .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1).accessibilityHidden(true) }
+    }
+}
+
+struct MetricValue: View {
+    let title: String
+    let value: String
+    var prominence = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            Text(title).font(.subheadline).foregroundStyle(Theme.secondary)
+            Text(value).font(Theme.metric).foregroundStyle(prominence ? Theme.accent : Theme.primary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct StatusMessage: View {
+    let text: String
+    var loading = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Theme.Space.sm) {
+            if loading {
+                SwiftUI.ProgressView().accessibilityHidden(true)
+            } else {
+                Image(systemName: "exclamationmark.circle").foregroundStyle(Theme.warning).accessibilityHidden(true)
+            }
+            Text(text).font(.subheadline).foregroundStyle(Theme.primary)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -121,9 +160,13 @@ struct RepetitionControl<Count: View>: View {
         return Button { adjust(change) } label: {
             Image(systemName: icon)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(atLimit ? Ink.muted.opacity(0.5) : Ink.lilac)
-                .frame(width: 44, height: 44)
-                .background(Ink.lilac.opacity(atLimit ? 0.04 : 0.10), in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(atLimit ? Theme.secondary : Theme.primary)
+                .frame(width: Theme.touch, height: Theme.touch)
+                .background(Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Theme.Radius.control)
+                        .strokeBorder(Theme.border).allowsHitTesting(false)
+                }
         }
         .buttonStyle(PressStyle())
         .accessibilityLabel("\(label), \(context)")
@@ -134,12 +177,15 @@ struct RepetitionField: View {
     @Binding var text: String
     var label = "Повторы"
     @ScaledMetric(relativeTo: .body) private var fieldWidth = 50.0
+    @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
         let value = Int(text.trimmed)
-        HStack {
-            Text("Повторы")
-            Spacer(minLength: 4)
+        let layout = textSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Theme.Space.sm))
+            : AnyLayout(HStackLayout(spacing: Theme.Space.xs))
+        layout {
+            Text("Повторы").frame(maxWidth: .infinity, alignment: .leading)
             RepetitionControl(value: value, context: label, adjust: adjust) {
                 TextField("—", text: $text)
                     .numericKeyboard()
@@ -160,14 +206,14 @@ struct RepetitionField: View {
 
 struct IconBadge: View {
     var icon: String
-    var color = Ink.lilac
-    var size: CGFloat = 43
+    var color = Theme.secondary
+    var size: CGFloat = Theme.touch
     var body: some View {
         Image(systemName: icon)
             .font(.system(size: size * 0.38, weight: .semibold))
             .foregroundStyle(color)
             .frame(width: size, height: size)
-            .background(color.opacity(0.13), in: RoundedRectangle(cornerRadius: size * 0.30))
+            .background(Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
             .accessibilityHidden(true)
     }
 }
@@ -175,7 +221,7 @@ struct IconBadge: View {
 struct SectionHeading: View {
     let title: String
     var body: some View {
-        Text(title).font(.title3.weight(.semibold)).tracking(-0.35).accessibilityAddTraits(.isHeader)
+        Text(title).font(Theme.sectionTitle).accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -188,7 +234,7 @@ struct HintPanel: View {
             VStack(alignment: .leading, spacing: 9) {
                 IconBadge(icon: icon)
                 Text(title).font(.headline)
-                Text(text).font(.subheadline).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
+                Text(text).font(.subheadline).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -212,13 +258,13 @@ extension View {
     }
 
     func formTint() -> some View {
-        self.scrollContentBackground(.hidden).background(Ink.paper.ignoresSafeArea()).tint(Ink.lilac)
+        self.tint(Theme.accent)
     }
 }
 
 extension WorkoutKind {
     var color: Color {
-        switch self { case .strength: Ink.lilac; case .mobility: Color(red: 0.71, green: 0.91, blue: 0.83); case .intervals: Ink.peach }
+        switch self { case .strength: Theme.primary; case .mobility: Theme.reference; case .intervals: Theme.secondary }
     }
 }
 
@@ -230,7 +276,20 @@ enum Format {
         let style = Date.FormatStyle().day().month(.wide).locale(russian)
         return value.formatted(year ? style.year() : style)
     }
-    static func clock(_ seconds: Int) -> String { String(format: "%02d:%02d", max(0, seconds) / 60, max(0, seconds) % 60) }
+    static func clock(_ seconds: Int) -> String {
+        let seconds = max(0, seconds)
+        if seconds >= 3600 { return String(format: "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60) }
+        return String(format: "%02d:%02d", seconds / 60, seconds % 60)
+    }
+    static func spokenTime(_ seconds: Int) -> String {
+        let formatter = DateComponentsFormatter()
+        var calendar = Calendar.current
+        calendar.locale = russian
+        formatter.calendar = calendar
+        formatter.unitsStyle = .full
+        formatter.allowedUnits = [.hour, .minute, .second]
+        return formatter.string(from: TimeInterval(max(0, seconds))) ?? "\(seconds) сек"
+    }
     static func duration(_ seconds: Int) -> String { seconds < 60 ? "\(seconds) сек" : "\(seconds / 60) мин" }
     static func count(_ value: Int, _ forms: (String, String, String)) -> String {
         let last = value % 10
