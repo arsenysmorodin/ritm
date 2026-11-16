@@ -224,6 +224,27 @@ struct SessionView: View {
     }
 
     private func stepRow(_ step: WorkoutStep, grouped: Bool, next: Bool) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            stepControls(step, grouped: grouped, next: next)
+            if next, let previous = previousSet(for: step) {
+                PreviousSetButton(previous: previous, unit: step.unit,
+                                  matches: step.set.value == previous.value && step.set.weight == previous.weight) {
+                    store.applyPreviousSet(previous, to: step)
+                }
+            }
+        }
+        .padding(.leading, step.set.dropStage == nil ? Theme.Space.sm : Theme.Space.lg)
+        .padding(.trailing, Theme.Space.xs)
+        .padding(.vertical, Theme.Space.xs)
+        .background(next ? Theme.accent.opacity(0.07) : Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.control)
+                .strokeBorder(next ? Theme.accent : Theme.border, lineWidth: next ? 2 : 1)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func stepControls(_ step: WorkoutStep, grouped: Bool, next: Bool) -> some View {
         let set = step.set
         let quantity = "\(set.value) \(step.unit.short)"
         let weight = set.weight > 0 ? "\(Format.weight(set.weight)) кг" : ""
@@ -237,7 +258,8 @@ struct SessionView: View {
             : AnyLayout(HStackLayout(spacing: 6))
         return layout {
             Button {
-                editing = SetSelection(exerciseID: step.exerciseID, index: step.round, unit: step.unit, set: set)
+                editing = SetSelection(exerciseID: step.exerciseID, index: step.round, unit: step.unit, set: set,
+                                       previous: previousSet(for: step))
             } label: {
                 HStack(spacing: 5) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -283,15 +305,11 @@ struct SessionView: View {
                 .frame(maxWidth: stacked ? .infinity : nil, alignment: .trailing)
             }
         }
-        .padding(.leading, set.dropStage == nil ? Theme.Space.sm : Theme.Space.lg)
-        .padding(.trailing, Theme.Space.xs)
-        .padding(.vertical, Theme.Space.xs)
-        .background(next ? Theme.accent.opacity(0.07) : Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
-        .overlay {
-            RoundedRectangle(cornerRadius: Theme.Radius.control)
-                .strokeBorder(next ? Theme.accent : Theme.border, lineWidth: next ? 2 : 1)
-                .allowsHitTesting(false)
-        }
+    }
+
+    private func previousSet(for step: WorkoutStep) -> PreviousSet? {
+        guard !step.set.complete, let workout = store.journal.activeWorkout else { return nil }
+        return PreviousSet.find(for: step, in: workout, records: store.journal.records)
     }
 
     private func spokenName(_ step: WorkoutStep) -> String {
@@ -402,6 +420,49 @@ struct SetSelection: Identifiable {
     let index: Int
     let unit: ExerciseUnit
     var set: LoggedSet
+    let previous: PreviousSet?
+}
+
+private struct PreviousSetButton: View {
+    let previous: PreviousSet
+    let unit: ExerciseUnit
+    let matches: Bool
+    let apply: () -> Void
+
+    var body: some View {
+        let amount = "\(previous.value) \(unit.short)"
+        let details = previous.weight > 0 ? "\(Format.weight(previous.weight)) кг × \(amount)" : amount
+        let label = HStack(spacing: Theme.Space.sm) {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("В прошлый раз").font(.caption).foregroundStyle(Theme.secondary)
+                    Text(details).font(.subheadline.weight(.semibold)).monospacedDigit()
+                        .foregroundStyle(Theme.primary)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "clock.arrow.circlepath").foregroundStyle(Theme.secondary).accessibilityHidden(true)
+            }
+            Spacer(minLength: Theme.Space.xs)
+            Image(systemName: matches ? "checkmark" : "arrow.turn.down.left")
+                .foregroundStyle(matches ? Theme.secondary : Theme.accent)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, Theme.Space.sm)
+        .padding(.vertical, Theme.Space.xs)
+        .frame(minHeight: Theme.touch)
+        .background(Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+
+        if matches {
+            label.accessibilityElement(children: .ignore)
+                .accessibilityLabel("В прошлый раз \(details)")
+                .accessibilityValue("Значения уже в подходе")
+        } else {
+            Button(action: apply) { label }
+                .buttonStyle(PressStyle())
+                .accessibilityLabel("Подставить значения прошлого подхода, \(details)")
+        }
+    }
 }
 
 private struct SetEditor: View {
@@ -427,12 +488,19 @@ private struct SetEditor: View {
                     TextField(selection.unit.label, text: $value).numericKeyboard().accessibilityLabel(selection.unit.label)
                 }
                 TextField("Вес, кг", text: $weight).numericKeyboard(decimal: true).accessibilityLabel("Вес в килограммах")
-                    if !exerciseQuantityRange.contains(Int(value.trimmed) ?? 0) {
-                        StatusMessage(text: "Укажите число от 1 до 3600.")
+                if !exerciseQuantityRange.contains(Int(value.trimmed) ?? 0) {
+                    StatusMessage(text: "Укажите число от 1 до 3600.")
+                }
+                if validWeight(weight) == nil {
+                    StatusMessage(text: "Укажите вес от 0 до 500 кг.")
+                }
+                if let previous = selection.previous {
+                    PreviousSetButton(previous: previous, unit: selection.unit,
+                                      matches: Int(value.trimmed) == previous.value && validWeight(weight) == previous.weight) {
+                        value = String(previous.value)
+                        weight = previous.weight > 0 ? Format.weight(previous.weight) : ""
                     }
-                    if validWeight(weight) == nil {
-                        StatusMessage(text: "Укажите вес от 0 до 500 кг.")
-                    }
+                }
             }
             .formTint()
             .navigationTitle(selection.set.dropStage.map { "Дроп \($0)" } ?? "Подход \(selection.index)")

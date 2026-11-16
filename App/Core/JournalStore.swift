@@ -37,6 +37,7 @@ enum JournalFile {
     private(set) var journal: Journal
     private(set) var isReadable = true
     var error: String?
+    @ObservationIgnored var onRestChanged: ((WorkoutRest?) -> Void)?
 
     init(url: URL) {
         self.url = url
@@ -49,22 +50,40 @@ enum JournalFile {
     }
 
     func reload() {
-        do { journal = try JournalFile.load(url); isReadable = true; error = nil }
+        do {
+            let previousRest = journal.activeWorkout?.rest
+            journal = try JournalFile.load(url)
+            isReadable = true
+            error = nil
+            if journal.activeWorkout?.rest != previousRest { onRestChanged?(journal.activeWorkout?.rest) }
+        }
         catch { self.error = "Не удалось открыть журнал. Исходный файл сохранён." }
     }
 
     @discardableResult func change(_ update: (inout Journal) -> Void) -> Bool {
         guard isReadable else { return false }
+        let previousRest = journal.activeWorkout?.rest
         var next = journal
         update(&next)
         do {
             try JournalFile.save(next, to: url)
             journal = next
+            if next.activeWorkout?.rest != previousRest { onRestChanged?(next.activeWorkout?.rest) }
             publishWidgets()
             return true
         } catch {
             self.error = "Не удалось сохранить изменения. Проверьте свободное место и попробуйте ещё раз."
             return false
+        }
+    }
+
+    @discardableResult func applyPreviousSet(_ previous: PreviousSet, to step: WorkoutStep) -> Bool {
+        guard let draft = journal.activeWorkout,
+              let exercise = draft.exercises.firstIndex(where: { $0.id == step.exerciseID }),
+              let set = draft.exercises[exercise].sets.firstIndex(where: { $0.id == step.id && !$0.complete }) else { return false }
+        return updateWorkout {
+            $0.exercises[exercise].sets[set].value = previous.value
+            $0.exercises[exercise].sets[set].weight = previous.weight
         }
     }
 

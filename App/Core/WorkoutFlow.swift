@@ -36,6 +36,11 @@ struct WorkoutStep: Identifiable {
     }
 }
 
+struct WorkoutRest: Equatable, Hashable, Codable {
+    let workoutID: UUID
+    let endsAt: Date
+}
+
 struct WorkoutRound: Identifiable {
     let id: Int
     let steps: [WorkoutStep]
@@ -72,6 +77,10 @@ extension LoggedExercise {
 }
 
 extension ActiveWorkout {
+    var rest: WorkoutRest? {
+        restUntil.map { WorkoutRest(workoutID: id, endsAt: $0) }
+    }
+
     var sections: [WorkoutSection] {
         let visibleBlocks = (blocks ?? []).available(for: exercises.map(\.plan.id))
         var rendered: Set<UUID> = []

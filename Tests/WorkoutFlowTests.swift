@@ -3,6 +3,42 @@ import Testing
 @testable import RitmCore
 
 struct WorkoutFlowTests {
+    @Test @MainActor func previousSetReusesMatchingRoundsAndDropStagesWithoutCompletingTheSet() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "RitmPreviousSetTests-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appending(path: "journal.json")
+        let store = JournalStore(url: file)
+        let press = ExercisePlan(name: "Жим", sets: 2, target: 10, weight: 16, isCustom: true,
+                                 drops: [.init(repetitions: 8, weight: 12)])
+        let unrelated = ExercisePlan(name: press.name, target: 30, weight: 4, isCustom: true)
+        let earlier = Date.now.addingTimeInterval(-600)
+        var old = ActiveWorkout(routine: Routine(name: "Силовая", exercises: [press]), now: earlier)
+        old.exercises[0].sets[0] = LoggedSet(value: 11, weight: 18, complete: true, round: 1)
+        old.exercises[0].sets[1] = LoggedSet(value: 9, weight: 0, complete: true, round: 1, dropStage: 1)
+        old.exercises[0].sets[2] = LoggedSet(value: 7, weight: 20, complete: true, round: 2)
+        var different = ActiveWorkout(routine: Routine(name: "Другая", exercises: [unrelated]), now: earlier.addingTimeInterval(120))
+        different.exercises[0].sets[0].complete = true
+        let records = [WorkoutRecord(different, endedAt: earlier.addingTimeInterval(210)),
+                       WorkoutRecord(old, endedAt: earlier.addingTimeInterval(90))]
+        let routine = Routine(name: old.name, exercises: [press])
+        #expect(store.change { $0.records = records })
+        #expect(store.start(routine))
+        let draft = try #require(store.journal.activeWorkout)
+        let steps = draft.exercises[0].steps
+
+        let first = try #require(PreviousSet.find(for: steps[0], in: draft, records: records))
+        let second = try #require(PreviousSet.find(for: steps[2], in: draft, records: records))
+        let drop = try #require(PreviousSet.find(for: steps[3], in: draft, records: records))
+        #expect(first.value == 11 && first.weight == 18)
+        #expect(second.value == 7 && second.weight == 20)
+        #expect(drop.value == 9 && drop.weight == 0)
+        #expect(store.applyPreviousSet(drop, to: steps[3]))
+        let saved = try #require(JournalFile.load(file).activeWorkout?.exercises[0].sets[3])
+        #expect(saved.id == steps[3].id && saved.value == 9 && saved.weight == 0)
+        #expect(!saved.complete && saved.round == 2 && saved.dropStage == 1)
+        #expect(store.journal.activeWorkout?.restUntil == nil)
+    }
+
     @Test func everyCatalogExerciseHasAnIllustratedPosition() {
         let missing = ExerciseCatalog.all.filter { ExerciseTechnique.frames(for: $0.id).isEmpty }.map(\.id)
         #expect(missing.isEmpty)

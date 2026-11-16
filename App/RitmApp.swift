@@ -2,6 +2,9 @@ import SwiftUI
 
 #if !RITM_PREVIEW
 @main struct RitmApp: App {
+    #if os(iOS)
+    @UIApplicationDelegateAdaptor(RestTimerDelegate.self) private var delegate
+    #endif
     @State private var store: JournalStore
     @State private var health = HealthConnection()
     @State private var watch: WatchLink
@@ -18,6 +21,9 @@ import SwiftUI
     var body: some Scene {
         WindowGroup {
             RootView(store: store, health: health, watch: watch)
+                #if os(iOS)
+                .environment(delegate.restTimer)
+                #endif
                 #if os(macOS)
                 .frame(minWidth: 360, minHeight: 620)
                 #endif
@@ -35,6 +41,9 @@ struct RootView: View {
     let health: HealthConnection
     var watch: WatchLink? = nil
     @Environment(\.scenePhase) private var scene
+    #if os(iOS)
+    @Environment(RestTimerDelivery.self) private var restTimer
+    #endif
     @State private var tab = Tab.today
     @State private var showWorkout = false
     @State private var historyRecord: UUID?
@@ -88,6 +97,12 @@ struct RootView: View {
             }.tint(Theme.accent)
         })
         .onChange(of: scene, initial: true) { _, phase in
+            #if os(iOS)
+            store.onRestChanged = { [weak timer = restTimer] rest in
+                timer?.sync(rest, isForeground: UIApplication.shared.applicationState == .active)
+            }
+            restTimer.sync(store.journal.activeWorkout?.rest, isForeground: phase == .active)
+            #endif
             if phase == .active {
                 today = .now
                 store.publishWidgets()
@@ -95,6 +110,14 @@ struct RootView: View {
                 Task { await health.exportPending(store) }
             }
         }
+        #if os(iOS)
+        .onChange(of: restTimer.openWorkout, initial: true) { _, open in
+            guard open else { return }
+            restTimer.openWorkout = false
+            tab = .today
+            if store.journal.activeWorkout != nil { showWorkout = true }
+        }
+        #endif
         .task {
             for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged) {
                 today = .now

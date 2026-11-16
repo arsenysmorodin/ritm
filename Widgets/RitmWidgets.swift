@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 import WidgetKit
 
@@ -92,9 +93,68 @@ private struct TrainingWeekWidget: Widget {
     }
 }
 
+private struct RestTimerActivity: Widget {
+    // The Lock Screen host and widget content can resolve different appearances.
+    private let lockSurface = Color(red: 22 / 255, green: 27 / 255, blue: 33 / 255)
+    private let lockText = Color(red: 244 / 255, green: 245 / 255, blue: 247 / 255)
+    private let lockAccent = Color(red: 185 / 255, green: 231 / 255, blue: 107 / 255)
+    private let lockWarning = Color(red: 242 / 255, green: 185 / 255, blue: 111 / 255)
+
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: RestActivityAttributes.self) { context in
+            HStack(spacing: Theme.Space.md) {
+                Label {
+                    Text(context.isStale ? "Отдых завершён" : "Отдых")
+                        .font(.headline)
+                } icon: {
+                    Image(systemName: context.isStale ? "checkmark.circle.fill" : "timer")
+                        .foregroundStyle(context.isStale ? lockAccent : lockWarning)
+                }
+                Spacer(minLength: Theme.Space.sm)
+                if !context.isStale {
+                    countdown(context).font(Theme.timer).multilineTextAlignment(.trailing)
+                }
+            }
+            .padding(Theme.Space.lg)
+            .foregroundStyle(lockText)
+            .activityBackgroundTint(lockSurface)
+            .activitySystemActionForegroundColor(lockText)
+            .widgetURL(URL(string: "ritm://today"))
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Label(context.isStale ? "Отдых завершён" : "Отдых", systemImage: context.isStale ? "checkmark.circle" : "timer")
+                        .font(.headline)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    if !context.isStale { countdown(context).font(.title2.monospacedDigit()) }
+                }
+            } compactLeading: {
+                Image(systemName: context.isStale ? "checkmark" : "timer").accessibilityLabel(context.isStale ? "Отдых завершён" : "Отдых")
+            } compactTrailing: {
+                if !context.isStale {
+                    countdown(context)
+                        .font(.caption.monospacedDigit())
+                        .frame(maxWidth: 43)
+                }
+            } minimal: {
+                Image(systemName: context.isStale ? "checkmark" : "timer").accessibilityLabel(context.isStale ? "Отдых завершён" : "Отдых")
+            }
+            .widgetURL(URL(string: "ritm://today"))
+        }
+    }
+
+    private func countdown(_ context: ActivityViewContext<RestActivityAttributes>) -> some View {
+        let end = context.attributes.endsAt
+        return Text(timerInterval: min(context.state.startedAt, end)...end, countsDown: true, showsHours: false)
+            .monospacedDigit()
+    }
+}
+
 @main struct RitmWidgetBundle: WidgetBundle {
     var body: some Widget {
         NextWorkoutWidget()
         TrainingWeekWidget()
+        RestTimerActivity()
     }
 }
