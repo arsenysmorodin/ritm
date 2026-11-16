@@ -157,10 +157,13 @@ struct AppearanceSettings: View {
                             Text(mode.title).tag(mode)
                         }
                     }
-                    accentPicker("Акцент приложения", selection: $appAccent)
+                    accentPicker("Акцент приложения", selection: $appAccent, options: RitmAccent.appOptions)
                 }
                 Section("Виджеты") {
-                    accentPicker("Цвет виджетов", selection: $widgetAccent)
+                    accentPicker("Цвет виджетов", selection: $widgetAccent, options: RitmAccent.allCases)
+                        #if os(iOS)
+                        .pickerStyle(.navigationLink)
+                        #endif
                 }
             }
             .navigationTitle("Оформление")
@@ -171,13 +174,13 @@ struct AppearanceSettings: View {
         #endif
     }
 
-    private func accentPicker(_ title: String, selection: Binding<RitmAccent>) -> some View {
+    private func accentPicker(_ title: String, selection: Binding<RitmAccent>, options: [RitmAccent]) -> some View {
         Picker(title, selection: selection) {
-            ForEach(RitmAccent.allCases) { option in
+            ForEach(options) { option in
                 Label {
                     Text(option.title)
                 } icon: {
-                    Circle().fill(option.color).frame(width: 14, height: 14)
+                    Circle().fill(option.color).frame(width: 14, height: 14).accessibilityHidden(true)
                 }
                 .tag(option)
             }

@@ -36,9 +36,13 @@ private struct NextWorkoutWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: WidgetSnapshot.workoutKind, provider: RitmProvider()) { entry in
             VStack(alignment: .leading, spacing: 7) {
-                Label(entry.snapshot?.activeWorkout == nil ? "Тренировка" : "В процессе", systemImage: "dumbbell.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(entry.snapshot?.activeWorkout == nil ? Theme.secondary : entry.accent.color)
+                Label {
+                    Text(entry.snapshot?.activeWorkout == nil ? "Тренировка" : "В процессе")
+                        .foregroundStyle(entry.snapshot?.activeWorkout == nil ? Theme.secondary : entry.accent.color)
+                } icon: {
+                    Image(systemName: "dumbbell.fill").foregroundStyle(entry.accent.color).widgetAccentable()
+                }
+                .font(.caption.weight(.semibold))
                 Spacer(minLength: 4)
                 Text(entry.snapshot?.activeWorkout ?? entry.snapshot?.suggestion(at: entry.date) ?? "Открыть «Ритм»")
                     .font(.title3.weight(.semibold)).minimumScaleFactor(0.7).lineLimit(3)
@@ -70,7 +74,12 @@ private struct TrainingWeekWidget: Widget {
             let values = entry.snapshot?.week(at: entry.date) ?? Array(repeating: 0, count: 7)
             let total = values.reduce(0, +)
             VStack(alignment: .leading, spacing: 8) {
-                Label("Эта неделя", systemImage: "calendar").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondary)
+                Label {
+                    Text("Эта неделя").foregroundStyle(Theme.secondary)
+                } icon: {
+                    Image(systemName: "calendar").foregroundStyle(entry.accent.color).widgetAccentable()
+                }
+                .font(.caption.weight(.semibold))
                 Spacer(minLength: 0)
                 if let snapshot = entry.snapshot {
                     Text("\(total) из \(snapshot.weeklyGoal)").font(Theme.metric)
