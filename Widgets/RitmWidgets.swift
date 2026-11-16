@@ -5,11 +5,21 @@ import WidgetKit
 private struct RitmEntry: TimelineEntry {
     let date: Date
     let snapshot: WidgetSnapshot?
-    let accent = widgetAccent()
+    let palette = WidgetPalette(selection: widgetAccent())
 }
 
 func widgetAccent() -> RitmAccent {
     WidgetStorage.preferences.string(forKey: RitmAccent.widgetKey).flatMap(RitmAccent.init(rawValue:)) ?? .lime
+}
+
+struct WidgetPalette {
+    let selection: RitmAccent
+
+    var accent: Color { selection.color }
+    var primary: Color { selection == .monochrome ? accent : Theme.primary }
+    var secondary: Color { selection == .monochrome ? Color("WidgetMonoSecondary") : Theme.secondary }
+    var surface: Color { selection == .monochrome ? Color("WidgetMonoSurface") : Theme.surface }
+    var elevated: Color { selection == .monochrome ? Color("WidgetMonoElevated") : Theme.elevated }
 }
 
 private struct RitmProvider: TimelineProvider {
@@ -35,12 +45,13 @@ private struct RitmProvider: TimelineProvider {
 private struct NextWorkoutWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: WidgetSnapshot.workoutKind, provider: RitmProvider()) { entry in
+            let palette = entry.palette
             VStack(alignment: .leading, spacing: 7) {
                 Label {
                     Text(entry.snapshot?.activeWorkout == nil ? "Тренировка" : "В процессе")
-                        .foregroundStyle(entry.snapshot?.activeWorkout == nil ? Theme.secondary : entry.accent.color)
+                        .foregroundStyle(entry.snapshot?.activeWorkout == nil ? palette.secondary : palette.accent)
                 } icon: {
-                    Image(systemName: "dumbbell.fill").foregroundStyle(entry.accent.color).widgetAccentable()
+                    Image(systemName: "dumbbell.fill").foregroundStyle(palette.accent).widgetAccentable()
                 }
                 .font(.caption.weight(.semibold))
                 Spacer(minLength: 4)
@@ -48,18 +59,18 @@ private struct NextWorkoutWidget: Widget {
                     .font(.title3.weight(.semibold)).minimumScaleFactor(0.7).lineLimit(3)
                     .privacySensitive()
                 if let summary = entry.snapshot, summary.activeWorkout != nil {
-                    Text("\(summary.completedSets) из \(summary.totalSets) подходов").font(.caption2).foregroundStyle(Theme.secondary)
+                    Text("\(summary.completedSets) из \(summary.totalSets) подходов").font(.caption2).foregroundStyle(palette.secondary)
                     if summary.totalSets > 0 {
                         ProgressView(value: Double(summary.completedSets), total: Double(summary.totalSets))
-                            .tint(entry.accent.color).accessibilityHidden(true)
+                            .tint(palette.accent).accessibilityHidden(true)
                     }
                 } else {
-                    Text("Перейти к тренировке").font(.caption2).foregroundStyle(Theme.secondary)
+                    Text("Перейти к тренировке").font(.caption2).foregroundStyle(palette.secondary)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .foregroundStyle(Theme.primary)
-            .containerBackground(Theme.surface, for: .widget)
+            .foregroundStyle(palette.primary)
+            .containerBackground(palette.surface, for: .widget)
             .widgetURL(URL(string: "ritm://today"))
         }
         .configurationDisplayName("Тренировка «Ритм»")
@@ -71,13 +82,14 @@ private struct NextWorkoutWidget: Widget {
 private struct TrainingWeekWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: WidgetSnapshot.weekKind, provider: RitmProvider()) { entry in
+            let palette = entry.palette
             let values = entry.snapshot?.week(at: entry.date) ?? Array(repeating: 0, count: 7)
             let total = values.reduce(0, +)
             VStack(alignment: .leading, spacing: 8) {
                 Label {
-                    Text("Эта неделя").foregroundStyle(Theme.secondary)
+                    Text("Эта неделя").foregroundStyle(palette.secondary)
                 } icon: {
-                    Image(systemName: "calendar").foregroundStyle(entry.accent.color).widgetAccentable()
+                    Image(systemName: "calendar").foregroundStyle(palette.accent).widgetAccentable()
                 }
                 .font(.caption.weight(.semibold))
                 Spacer(minLength: 0)
@@ -86,8 +98,8 @@ private struct TrainingWeekWidget: Widget {
                     HStack(spacing: 3) {
                         ForEach(Array(values.enumerated()), id: \.offset) { offset, count in
                             VStack(spacing: 3) {
-                                Capsule().fill(count > 0 ? entry.accent.color : Theme.elevated).frame(height: 8)
-                                Text(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][offset]).font(.system(size: 8)).foregroundStyle(Theme.secondary)
+                                Capsule().fill(count > 0 ? palette.accent : palette.elevated).frame(height: 8)
+                                Text(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][offset]).font(.system(size: 8)).foregroundStyle(palette.secondary)
                             }
                         }
                     }.accessibilityHidden(true)
@@ -97,8 +109,8 @@ private struct TrainingWeekWidget: Widget {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
-            .foregroundStyle(Theme.primary)
-            .containerBackground(Theme.surface, for: .widget)
+            .foregroundStyle(palette.primary)
+            .containerBackground(palette.surface, for: .widget)
             .widgetURL(URL(string: "ritm://history"))
         }
         .configurationDisplayName("Неделя «Ритм»")

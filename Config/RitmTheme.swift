@@ -2,7 +2,7 @@ import SwiftUI
 
 enum RitmAccent: String, CaseIterable, Identifiable {
     case lemon, lime, jade, mint, turquoise, blue, cobalt, indigo, violet, plum
-    case rose, raspberry, red, coral, orange, amber, graphite
+    case rose, raspberry, red, coral, orange, amber, graphite, monochrome
 
     static let appKey = "ritm.appearance.accent"
     static let widgetKey = "ritm.widgets.accent"
@@ -23,11 +23,12 @@ enum RitmAccent: String, CaseIterable, Identifiable {
         case .plum: "Сливовый"
         case .rose: "Розовый"
         case .raspberry: "Малиновый"
-        case .red: "Алый"
+        case .red: "Красный"
         case .coral: "Коралловый"
         case .orange: "Мандариновый"
         case .amber: "Янтарный"
         case .graphite: "Графитовый"
+        case .monochrome: "Монохром"
         }
     }
 

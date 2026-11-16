@@ -6,6 +6,7 @@ private struct HealthEntry: TimelineEntry {
     let date: Date
     let snapshot: HealthWidgetSnapshot?
     let accent: RitmAccent
+    var palette: WidgetPalette { WidgetPalette(selection: accent) }
 
     static func live(at date: Date = .now) -> HealthEntry {
         HealthEntry(date: date,
@@ -30,7 +31,7 @@ private struct HealthTimeline: TimelineProvider {
                                                           hrv: series([34, 39, 46, 43, 51]),
                                                           nutrition: [.energy: 1710, .protein: 94, .fat: 56, .carbs: 211,
                                                                       .fiber: 23, .sugar: 38, .saturatedFat: 16, .sodium: 1564]),
-                           accent: .lime)
+                           accent: widgetAccent())
     }
 
     func getSnapshot(in context: Context, completion: @escaping (HealthEntry) -> Void) {
@@ -51,11 +52,11 @@ struct HeartWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: HealthWidgetSnapshot.heartKind, provider: HealthTimeline()) { entry in
             HeartWidgetView(entry: entry)
-                .containerBackground(Theme.surface, for: .widget)
+                .containerBackground(entry.palette.surface, for: .widget)
                 .widgetURL(URL(string: "ritm://health"))
         }
         .configurationDisplayName("Пульс и ВСР")
-        .description("Последние измерения и графики пульса и вариабельности сердечного ритма за сегодня.")
+        .description("Последние измерения пульса и ВСР, график ВСР за сегодня.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
@@ -64,60 +65,67 @@ private struct HeartWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: HealthEntry
 
-    private var showCharts: Bool { family != .systemSmall }
+    private var compact: Bool { family == .systemSmall }
     private var expanded: Bool { family == .systemLarge }
-    private var snapshot: HealthWidgetSnapshot? { entry.snapshot }
+    private var palette: WidgetPalette { entry.palette }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: expanded ? 12 : 6) {
             Label("Пульс и ВСР", systemImage: "waveform.path.ecg")
-                .font(.subheadline.weight(.semibold)).foregroundStyle(entry.accent.color)
+                .font(.subheadline.weight(.semibold)).foregroundStyle(palette.accent)
                 .widgetAccentable()
-            if snapshot == nil {
-                Spacer(minLength: 0)
-                Text("Подключите Apple «Здоровье» в «Ритме».")
-                    .font(.caption).foregroundStyle(Theme.secondary)
+            if let snapshot = entry.snapshot {
+                readings(snapshot)
+                if compact {
+                    Spacer(minLength: 0)
+                } else {
+                    let points = snapshot.isToday(entry.date) ? snapshot.hrv.today : []
+                    if points.isEmpty {
+                        Text("Нет замеров ВСР за сегодня")
+                            .font(.caption)
+                            .foregroundStyle(palette.secondary)
+                            .frame(maxHeight: .infinity, alignment: .center)
+                    } else {
+                        variabilityChart(points)
+                    }
+                }
             } else {
                 Spacer(minLength: 0)
-                measurement("Пульс", unit: "уд/мин", series: snapshot?.pulse, tint: entry.accent.color)
-                if expanded { Divider() }
-                measurement("ВСР (SDNN)", unit: "мс", series: snapshot?.hrv, tint: Theme.reference)
+                Text("Подключите Apple «Здоровье» в «Ритме».")
+                    .font(.caption).foregroundStyle(palette.secondary)
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .foregroundStyle(Theme.primary)
+        .foregroundStyle(palette.primary)
         .privacySensitive()
     }
 
-    private func measurement(_ title: String, unit: String, series: CardiacSeries?, tint: Color) -> some View {
-        let recent = series?.recent(at: entry.date)
-        let points = snapshot?.isToday(entry.date) == true ? (series?.today ?? []) : []
-        let layout = expanded ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-            : AnyLayout(HStackLayout(spacing: 8))
+    private func readings(_ snapshot: HealthWidgetSnapshot) -> some View {
+        let layout = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 5))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
         return layout {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.caption.weight(.medium)).foregroundStyle(Theme.secondary)
-                if let recent {
-                    Text("\(format(recent.value)) \(unit)")
-                        .font((expanded ? Font.title2 : .headline).weight(.semibold)).monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.73)
-                    Text(timeOf(recent.date))
-                        .font(.caption2).foregroundStyle(Theme.secondary).lineLimit(1)
-                } else {
-                    Text("Нет замеров").font(.caption.weight(.semibold))
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
-            if showCharts {
-                if points.isEmpty {
-                    Text("Нет замеров сегодня").font(.caption2).foregroundStyle(Theme.secondary)
-                } else {
-                    seriesChart(points, title: title, unit: unit, tint: tint)
-                }
+            measurement("ВСР (SDNN)", unit: "мс", reading: snapshot.hrv.recent(at: entry.date))
+            measurement("Пульс", unit: "уд/мин", reading: snapshot.pulse.recent(at: entry.date))
+        }
+    }
+
+    private func measurement(_ title: String, unit: String, reading: CardiacReading?) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title).font(.caption.weight(.medium)).foregroundStyle(palette.secondary)
+            if let reading {
+                Text("\(format(reading.value)) \(unit)")
+                    .font((expanded ? Font.title2 : .headline).weight(.semibold)).monospacedDigit()
+                    .lineLimit(1).minimumScaleFactor(0.73)
+                Text(timeOf(reading.date))
+                    .font(.caption2).foregroundStyle(palette.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.75)
+            } else {
+                Text("Нет замеров").font(.caption.weight(.semibold))
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     private func timeOf(_ date: Date) -> String {
@@ -127,33 +135,43 @@ private struct HeartWidgetView: View {
             : date.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(locale))
     }
 
-    private func seriesChart(_ points: [CardiacReading], title: String, unit: String, tint: Color) -> some View {
+    private func variabilityChart(_ points: [CardiacReading]) -> some View {
         let start = Calendar.current.startOfDay(for: entry.date)
         let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86400)
         let low = points.map(\.value).min() ?? 0
         let high = points.map(\.value).max() ?? 1
         let padding = max(3, (high - low) / 8)
         return Chart(points) { point in
-            LineMark(x: .value("Время", point.date), y: .value(unit, point.value))
-                .foregroundStyle(tint)
-            if points.count == 1 || point.id == points.last?.id {
-                PointMark(x: .value("Время", point.date), y: .value(unit, point.value))
-                    .foregroundStyle(tint).symbolSize(15)
+            LineMark(x: .value("Время", point.date), y: .value("ВСР, мс", point.value))
+                .foregroundStyle(palette.accent)
+                .lineStyle(StrokeStyle(lineWidth: expanded ? 2.5 : 2, lineCap: .round, lineJoin: .round))
+            if expanded || point.id == points.last?.id {
+                PointMark(x: .value("Время", point.date), y: .value("ВСР, мс", point.value))
+                    .foregroundStyle(palette.accent).symbolSize(20)
             }
         }
         .chartYScale(domain: max(0, low - padding)...(high + padding))
         .chartXScale(domain: start...end)
         .chartXAxis {
-            if expanded {
-                AxisMarks(values: .stride(by: .hour, count: 8)) {
-                    AxisValueLabel(format: .dateTime.hour().minute().locale(Locale(identifier: "ru_RU")), collisionResolution: .greedy)
+            AxisMarks(values: .stride(by: .hour, count: 6)) { value in
+                if let date = value.as(Date.self), date < end {
+                    AxisValueLabel(collisionResolution: .greedy) {
+                        Text(date.formatted(.dateTime.hour().minute().locale(Locale(identifier: "ru_RU"))))
+                            .font(.caption2).foregroundStyle(palette.secondary)
+                    }
                 }
             }
         }
-        .chartYAxis(.hidden)
-        .frame(minWidth: expanded ? nil : 85, maxWidth: .infinity)
-        .frame(height: expanded ? 61 : 35)
-        .accessibilityLabel("\(title) за сегодня")
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: expanded ? 5 : 3)) { value in
+                if let value = value.as(Double.self) {
+                    AxisValueLabel(format(value)).font(.caption2).foregroundStyle(palette.secondary)
+                }
+                AxisGridLine().foregroundStyle(palette.secondary.opacity(0.24))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityLabel("Вариабельность сердечного ритма за сегодня")
     }
 }
 
@@ -161,7 +179,7 @@ struct NutritionWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: HealthWidgetSnapshot.nutritionKind, provider: HealthTimeline()) { entry in
             NutritionWidgetView(entry: entry)
-                .containerBackground(Theme.surface, for: .widget)
+                .containerBackground(entry.palette.surface, for: .widget)
                 .widgetURL(URL(string: "ritm://health"))
         }
         .configurationDisplayName("Питание FatSecret")
@@ -173,6 +191,7 @@ struct NutritionWidget: Widget {
 private struct NutritionWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: HealthEntry
+    private var palette: WidgetPalette { entry.palette }
 
     var body: some View {
         let small = family == .systemSmall
@@ -181,24 +200,24 @@ private struct NutritionWidgetView: View {
         VStack(alignment: .leading, spacing: small ? 5 : 9) {
             HStack(alignment: .firstTextBaseline) {
                 Label("Питание", systemImage: "fork.knife")
-                    .font(.subheadline.weight(.semibold)).foregroundStyle(entry.accent.color).widgetAccentable()
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(palette.accent).widgetAccentable()
                 if !small {
                     Spacer(minLength: 4)
-                    Text("Сегодня · FatSecret").font(.caption).foregroundStyle(Theme.secondary)
+                    Text("Сегодня · FatSecret").font(.caption).foregroundStyle(palette.secondary)
                 }
             }
             if let energy = amount(.energy) {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text(format(energy, fraction: false)).font((small ? Font.title2 : .largeTitle).weight(.semibold)).monospacedDigit()
-                    Text("ккал").font(.caption).foregroundStyle(Theme.secondary)
+                    Text("ккал").font(.caption).foregroundStyle(palette.secondary)
                 }
                 .accessibilityElement(children: .combine)
             } else {
-                Text("Калории: нет данных").font(.caption).foregroundStyle(Theme.secondary)
+                Text("Калории: нет данных").font(.caption).foregroundStyle(palette.secondary)
             }
             if !hasData && !small {
                 Text(entry.snapshot == nil ? "Подключите «Здоровье» в «Ритме»." : "Нет записей FatSecret за сегодня.")
-                    .font(.caption).foregroundStyle(Theme.secondary)
+                    .font(.caption).foregroundStyle(palette.secondary)
             }
             Spacer(minLength: 0)
             let core: [Nutrient] = [.protein, .fat, .carbs, .fiber]
@@ -208,7 +227,7 @@ private struct NutritionWidgetView: View {
                 ForEach(items, id: \.self) { item in nutrient(item) }
             }
         }
-        .foregroundStyle(Theme.primary)
+        .foregroundStyle(palette.primary)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .privacySensitive()
     }
@@ -222,11 +241,11 @@ private struct NutritionWidgetView: View {
         let value = amount(kind)
         return VStack(alignment: .leading, spacing: 1) {
             Text(kind.title).font(wide ? .subheadline : .caption2)
-                .foregroundStyle(kind == .fiber ? entry.accent.color : Theme.secondary)
+                .foregroundStyle(kind == .fiber ? palette.accent : palette.secondary)
                 .lineLimit(1).minimumScaleFactor(0.74)
             Text(value.map { "\(format($0)) \(kind.unit)" } ?? (kind == .fiber ? "Нет данных" : "—"))
                 .font((wide ? Font.headline : .caption).weight(.semibold)).monospacedDigit()
-                .foregroundStyle(kind == .fiber && value != nil ? entry.accent.color : Theme.primary)
+                .foregroundStyle(kind == .fiber && value != nil ? palette.accent : palette.primary)
                 .lineLimit(1).minimumScaleFactor(0.75)
         }
         .accessibilityElement(children: .ignore)
