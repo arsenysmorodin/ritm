@@ -5,6 +5,11 @@ import WidgetKit
 private struct RitmEntry: TimelineEntry {
     let date: Date
     let snapshot: WidgetSnapshot?
+    let accent = widgetAccent()
+}
+
+func widgetAccent() -> RitmAccent {
+    WidgetStorage.preferences.string(forKey: RitmAccent.widgetKey).flatMap(RitmAccent.init(rawValue:)) ?? .lime
 }
 
 private struct RitmProvider: TimelineProvider {
@@ -33,7 +38,7 @@ private struct NextWorkoutWidget: Widget {
             VStack(alignment: .leading, spacing: 7) {
                 Label(entry.snapshot?.activeWorkout == nil ? "Тренировка" : "В процессе", systemImage: "dumbbell.fill")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(entry.snapshot?.activeWorkout == nil ? Theme.secondary : Theme.accent)
+                    .foregroundStyle(entry.snapshot?.activeWorkout == nil ? Theme.secondary : entry.accent.color)
                 Spacer(minLength: 4)
                 Text(entry.snapshot?.activeWorkout ?? entry.snapshot?.suggestion(at: entry.date) ?? "Открыть «Ритм»")
                     .font(.title3.weight(.semibold)).minimumScaleFactor(0.7).lineLimit(3)
@@ -42,7 +47,7 @@ private struct NextWorkoutWidget: Widget {
                     Text("\(summary.completedSets) из \(summary.totalSets) подходов").font(.caption2).foregroundStyle(Theme.secondary)
                     if summary.totalSets > 0 {
                         ProgressView(value: Double(summary.completedSets), total: Double(summary.totalSets))
-                            .tint(Theme.accent).accessibilityHidden(true)
+                            .tint(entry.accent.color).accessibilityHidden(true)
                     }
                 } else {
                     Text("Перейти к тренировке").font(.caption2).foregroundStyle(Theme.secondary)
@@ -72,7 +77,7 @@ private struct TrainingWeekWidget: Widget {
                     HStack(spacing: 3) {
                         ForEach(Array(values.enumerated()), id: \.offset) { offset, count in
                             VStack(spacing: 3) {
-                                Capsule().fill(count > 0 ? Theme.accent : Theme.elevated).frame(height: 8)
+                                Capsule().fill(count > 0 ? entry.accent.color : Theme.elevated).frame(height: 8)
                                 Text(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][offset]).font(.system(size: 8)).foregroundStyle(Theme.secondary)
                             }
                         }
@@ -155,6 +160,8 @@ private struct RestTimerActivity: Widget {
     var body: some Widget {
         NextWorkoutWidget()
         TrainingWeekWidget()
+        HeartWidget()
+        NutritionWidget()
         RestTimerActivity()
     }
 }

@@ -2,6 +2,7 @@ import Charts
 import SwiftUI
 
 struct HistoryView: View {
+    @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     let health: HealthConnection
     @Binding var selected: UUID?
@@ -91,7 +92,7 @@ struct HistoryView: View {
                         }
                         if record.healthExported {
                             Label("Сохранено в Apple «Здоровье»", systemImage: "heart.fill")
-                                .font(.subheadline).foregroundStyle(Theme.accent)
+                                .font(.subheadline).foregroundStyle(accent)
                         } else if store.journal.healthEnabled && health.isAvailable {
                             let title = record.awaitsHealthExport ? "Повторить отправку" : "Отправить в «Здоровье»"
                             ActionButton(title: title, icon: "heart", solid: false) {
@@ -168,6 +169,7 @@ struct RecordRow: View {
 }
 
 private struct ActivityChart: View {
+    @Environment(\.ritmAccent) private var accent
     let records: [WorkoutRecord]
 
     private var days: [ActivityDay] {
@@ -186,7 +188,7 @@ private struct ActivityChart: View {
                 MetricValue(title: "Тренировки за последние 7 дней", value: Format.integer(days.reduce(0) { $0 + $1.count }))
                 Chart(days) { day in
                     BarMark(x: .value("День", day.date, unit: .day), y: .value("Тренировки", day.count), width: .ratio(0.52))
-                        .foregroundStyle(Theme.accent).cornerRadius(4)
+                        .foregroundStyle(accent).cornerRadius(4)
                         .accessibilityLabel(Format.date(day.date)).accessibilityValue(Format.workouts(day.count))
                 }
                 .chartYScale(domain: 0...max(1, days.map(\.count).max() ?? 1))

@@ -61,7 +61,6 @@ struct ExerciseLibraryView: View {
                 }
             }
         }
-        .formTint()
         .searchable(text: $search, prompt: "Название упражнения")
         .navigationTitle("Каталог")
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } }
@@ -121,6 +120,7 @@ private struct ExerciseGuide: View {
 }
 
 struct MuscleMap: View {
+    @Environment(\.ritmAccent) private var accent
     let muscles: MuscleSelection
     var title = "Какие мышцы работают"
 
@@ -135,7 +135,7 @@ struct MuscleMap: View {
                         MuscleFigure(rear: false, primary: muscles.primary, secondary: muscles.secondary)
                         MuscleFigure(rear: true, primary: muscles.primary, secondary: muscles.secondary)
                     }
-                    if !muscles.primary.isEmpty { keys("Основные", muscles.primary, Theme.accent) }
+                    if !muscles.primary.isEmpty { keys("Основные", muscles.primary, accent) }
                     if !muscles.secondary.isEmpty { keys("Также работают", muscles.secondary, Theme.reference) }
                 }
             }
@@ -155,6 +155,7 @@ struct MuscleMap: View {
 }
 
 private struct MuscleFigure: View {
+    @Environment(\.ritmAccent) private var accent
     let rear: Bool
     let primary: [Muscle]
     let secondary: [Muscle]
@@ -209,7 +210,7 @@ private struct MuscleFigure: View {
                     context.fill(path(silhouette, mirrored: mirror), with: .color(Theme.elevated))
                     for (muscle, points) in regions {
                         var color = Theme.border
-                        if primary.contains(muscle) { color = Theme.accent }
+                        if primary.contains(muscle) { color = accent }
                         else if secondary.contains(muscle) { color = Theme.reference }
                         context.fill(path(points, mirrored: mirror), with: .color(color))
                     }

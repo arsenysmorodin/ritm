@@ -1,5 +1,60 @@
 import SwiftUI
 
+enum RitmAccent: String, CaseIterable, Identifiable {
+    case lime, blue, violet, amber, rose
+
+    static let appKey = "ritm.appearance.accent"
+    static let widgetKey = "ritm.widgets.accent"
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .lime: "Лайм"
+        case .blue: "Голубой"
+        case .violet: "Сиреневый"
+        case .amber: "Янтарный"
+        case .rose: "Розовый"
+        }
+    }
+
+    var color: Color {
+        self == .lime ? Theme.accent : Color("Accent-" + rawValue)
+    }
+}
+
+enum RitmAppearance: String, CaseIterable, Identifiable {
+    static let key = "ritm.appearance.mode"
+    case system, light, dark
+
+    var id: Self { self }
+    var scheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .system: "Как в iOS"
+        case .light: "Светлая"
+        case .dark: "Тёмная"
+        }
+    }
+}
+
+private struct RitmAccentKey: EnvironmentKey {
+    static let defaultValue = RitmAccent.lime.color
+}
+
+extension EnvironmentValues {
+    var ritmAccent: Color {
+        get { self[RitmAccentKey.self] }
+        set { self[RitmAccentKey.self] = newValue }
+    }
+}
+
 enum Theme {
     static let background = Color("Background")
     static let surface = Color("Surface")

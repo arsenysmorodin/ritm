@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HealthView: View {
+    @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     let health: HealthConnection
     @Environment(\.dynamicTypeSize) private var textSize
@@ -8,7 +9,7 @@ struct HealthView: View {
 
     var body: some View {
         Page {
-            PageHeader(title: "Здоровье", caption: "Активность за сегодня") { EmptyView() }
+            PageHeader(title: "Здоровье", caption: "Активность и показатели") { EmptyView() }
             if store.journal.healthEnabled && health.isAvailable {
                 if health.isReading && health.steps == nil && health.activeEnergy == nil {
                     Panel { StatusMessage(text: "Обновляем активность…", loading: true) }
@@ -24,12 +25,17 @@ struct HealthView: View {
                     }
                 }
             }
+            if store.journal.healthEnabled && health.isAvailable {
+                heartPanel(health.widgetSnapshot)
+                nutritionPanel(health.widgetSnapshot)
+                if let issue = health.widgetError { Panel { StatusMessage(text: issue) } }
+            }
             Panel {
                 VStack(alignment: .leading, spacing: 12) {
                     SectionHeading(title: "Apple «Здоровье»")
                     if health.isAvailable && store.journal.healthEnabled && health.canWrite {
                         Label("Подключено", systemImage: "checkmark.circle.fill")
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accent)
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(accent)
                     }
                     Text(connectionText).font(.subheadline).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                     if health.isAvailable {
@@ -38,7 +44,7 @@ struct HealthView: View {
                                 showPermissions = true
                             }
                             if health.additionalPermissionsPending {
-                                ActionButton(title: "Разрешить вес и пульс", icon: "heart.text.square", solid: false) {
+                                ActionButton(title: "Разрешить данные для виджетов", icon: "heart.text.square", solid: false) {
                                     Task { await health.connect(store) }
                                 }.disabled(health.isBusy)
                             }
@@ -71,15 +77,75 @@ struct HealthView: View {
         .alert("Разрешения «Здоровья»", isPresented: $showPermissions) {
             Button("Понятно", role: .cancel) {}
         } message: {
-            Text("Откройте приложение Apple «Здоровье», нажмите на фото профиля и в разделе «Конфиденциальность» выберите «Приложения» → «Ритм». Там можно изменить доступ к шагам, активной энергии, весу тела, пульсу и записи тренировок.")
+            Text("Откройте Apple «Здоровье» → Профиль → Приложения → «Ритм». Разрешите чтение пульса, ВСР и показателей питания, которые хотите видеть в виджетах.")
         }
     }
 
     private var connectionText: String {
         if !health.isAvailable { return health.availabilityMessage }
-        if !store.journal.healthEnabled { return "Показывает шаги и активную энергию за день. С разрешения сохраняет завершённые тренировки в «Здоровье»." }
+        if !store.journal.healthEnabled { return "Показывает пульс, ВСР и питание из FatSecret. С разрешения сохраняет завершённые тренировки в Apple «Здоровье»." }
         if !health.canWrite { return "Чтобы отправлять тренировки, разрешите «Ритму» запись в Apple «Здоровье»." }
         return "Завершённые тренировки автоматически сохраняются в «Здоровье»."
+    }
+
+    private func heartPanel(_ snapshot: HealthWidgetSnapshot?) -> some View {
+        Panel {
+            VStack(alignment: .leading, spacing: Theme.Space.md) {
+                SectionHeading(title: "Пульс и ВСР")
+                let layout = textSize >= .xxxLarge
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: Theme.Space.md))
+                    : AnyLayout(HStackLayout(alignment: .top, spacing: Theme.Space.gutter))
+                layout {
+                    heartMetric("Пульс", reading: snapshot?.pulse.recent(at: .now), unit: "уд/мин")
+                    heartMetric("ВСР (SDNN)", reading: snapshot?.hrv.recent(at: .now), unit: "мс")
+                }
+                Text("Виджет показывает последние замеры и график за сегодня.")
+                    .font(.footnote).foregroundStyle(Theme.secondary)
+            }
+        }
+    }
+
+    private func heartMetric(_ title: String, reading: CardiacReading?, unit: String) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            Text(title).font(.subheadline).foregroundStyle(Theme.secondary)
+            if let reading {
+                Text("\(Format.weight(reading.value)) \(unit)").font(Theme.number)
+                Text(reading.date.formatted(.dateTime.day().month().hour().minute().locale(Format.russian)))
+                    .font(.caption).foregroundStyle(Theme.secondary)
+            } else {
+                Text("Нет замеров").font(.headline)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func nutritionPanel(_ snapshot: HealthWidgetSnapshot?) -> some View {
+        Panel {
+            VStack(alignment: .leading, spacing: Theme.Space.md) {
+                SectionHeading(title: "Питание")
+                Text("За сегодня · FatSecret через Apple «Здоровье»")
+                    .font(.subheadline).foregroundStyle(Theme.secondary)
+                ForEach(Nutrient.allCases, id: \.self) { kind in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(kind.title).foregroundStyle(kind == .fiber ? Theme.primary : Theme.secondary)
+                        Spacer(minLength: Theme.Space.sm)
+                        if let amount = snapshot?.nutrient(kind, at: .now) {
+                            Text("\(Format.weight(amount)) \(kind.unit)").fontWeight(.semibold).monospacedDigit()
+                                .foregroundStyle(kind == .fiber ? accent : Theme.primary)
+                        } else {
+                            Text("Нет данных").foregroundStyle(Theme.secondary)
+                        }
+                    }
+                    .font(.subheadline)
+                    .accessibilityElement(children: .combine)
+                }
+                if snapshot?.nutrient(.fiber, at: .now) == nil {
+                    Text("Клетчатка появится, когда FatSecret запишет её в Apple «Здоровье» и «Ритм» получит доступ к чтению.")
+                        .font(.footnote).foregroundStyle(Theme.secondary)
+                }
+            }
+        }
     }
 
     private func metric(_ label: String, icon: String, value: Int?) -> some View {

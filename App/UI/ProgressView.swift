@@ -2,6 +2,7 @@ import Charts
 import SwiftUI
 
 struct TrainingProgressView: View {
+    @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     let health: HealthConnection
     @State private var section: Section = .exercises
@@ -88,9 +89,9 @@ struct TrainingProgressView: View {
                             .font(.subheadline).foregroundStyle(Theme.secondary)
                         Chart(values) { point in
                             LineMark(x: .value("Дата", point.date), y: .value("Вес, кг", point.kilograms))
-                                .foregroundStyle(Theme.accent)
+                                .foregroundStyle(accent)
                             PointMark(x: .value("Дата", point.date), y: .value("Вес, кг", point.kilograms))
-                                .symbolSize(values.count > 45 ? 6 : 20).foregroundStyle(Theme.accent)
+                                .symbolSize(values.count > 45 ? 6 : 20).foregroundStyle(accent)
                         }
                         .chartYScale(domain: (low - 0.5)...(high + 0.5))
                         .trendAxes()
@@ -123,6 +124,7 @@ struct TrainingProgressView: View {
 }
 
 private struct ExerciseProgressView: View {
+    @Environment(\.ritmAccent) private var accent
     let progress: ExerciseProgress
     @State private var metric: Metric = .activity
     @Environment(\.dynamicTypeSize) private var textSize
@@ -147,8 +149,8 @@ private struct ExerciseProgressView: View {
                                     value: "\(Format.weight(value(latest))) \(axisTitle)")
                     }
                     Chart(progress.points) { point in
-                        LineMark(x: .value("Дата", point.date), y: .value(axisTitle, value(point))).foregroundStyle(Theme.accent)
-                        PointMark(x: .value("Дата", point.date), y: .value(axisTitle, value(point))).foregroundStyle(Theme.accent)
+                        LineMark(x: .value("Дата", point.date), y: .value(axisTitle, value(point))).foregroundStyle(accent)
+                        PointMark(x: .value("Дата", point.date), y: .value(axisTitle, value(point))).foregroundStyle(accent)
                     }
                     .trendAxes()
                     .frame(height: 180)

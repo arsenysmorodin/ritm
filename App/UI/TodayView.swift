@@ -1,11 +1,16 @@
 import SwiftUI
+#if os(iOS)
+import WidgetKit
+#endif
 
 struct TodayView: View {
+    @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     var start: (Routine?) -> Void
     var programs: () -> Void
     var openHistory: () -> Void
     var openRecord: (UUID) -> Void
+    var openAppearance: () -> Void = {}
     var now = Date.now
     @Environment(\.dynamicTypeSize) private var textSize
 
@@ -13,7 +18,11 @@ struct TodayView: View {
         let journal = store.journal
         let suggestion = journal.suggestion(on: now)
         Page {
-            PageHeader(title: "Сегодня", caption: Format.date(now)) { EmptyView() }
+            PageHeader(title: "Сегодня", caption: Format.date(now)) {
+                Button(action: openAppearance) { IconBadge(icon: "gearshape") }
+                    .buttonStyle(PressStyle())
+                    .accessibilityLabel("Оформление")
+            }
 
             workoutPanel(journal.activeWorkout, suggestion, program: journal.activeProgram?.name)
             if journal.activeWorkout == nil, suggestion != nil {
@@ -69,7 +78,7 @@ struct TodayView: View {
                     Label(draft != nil ? "В процессе" : plannedToday ? "По плану на сегодня" : "Тренировка",
                           systemImage: draft != nil ? "play.circle.fill" : kind.icon)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(draft != nil ? Theme.accent : Theme.secondary)
+                        .foregroundStyle(draft != nil ? accent : Theme.secondary)
                     Text(title).font(Theme.screenTitle)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
@@ -110,11 +119,11 @@ struct TodayView: View {
                                 .foregroundStyle(day.isToday ? Theme.primary : Theme.secondary)
                             ZStack {
                                 RoundedRectangle(cornerRadius: 6)
-                                    .fill(day.count > 0 ? Theme.accent : Theme.elevated)
+                                    .fill(day.count > 0 ? accent : Theme.elevated)
                                     .overlay {
                                         if day.isToday {
                                             RoundedRectangle(cornerRadius: 6)
-                                                .strokeBorder(day.count > 0 ? Theme.onAccent : Theme.accent, lineWidth: 2)
+                                                .strokeBorder(day.count > 0 ? Theme.onAccent : accent, lineWidth: 2)
                                         }
                                     }
                                 if day.count > 0 {
@@ -128,6 +137,49 @@ struct TodayView: View {
                         .accessibilityLabel("\(day.weekday.short), \(day.isToday ? "сегодня, " : "")\(day.count > 0 ? Format.workouts(day.count) : day.planned ? "по плану" : "свободно")")
                     }
                 }
+            }
+        }
+    }
+}
+
+struct AppearanceSettings: View {
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage(RitmAppearance.key) private var appearance = RitmAppearance.system
+    @AppStorage(RitmAccent.appKey) private var appAccent = RitmAccent.lime
+    @AppStorage(RitmAccent.widgetKey, store: WidgetStorage.preferences) private var widgetAccent = RitmAccent.lime
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Приложение") {
+                    Picker("Тема", selection: $appearance) {
+                        ForEach(RitmAppearance.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    accentPicker("Акцент приложения", selection: $appAccent)
+                }
+                Section("Виджеты") {
+                    accentPicker("Цвет виджетов", selection: $widgetAccent)
+                }
+            }
+            .navigationTitle("Оформление")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Готово") { dismiss() } } }
+        }
+        #if os(iOS)
+        .onChange(of: widgetAccent) { _, _ in WidgetCenter.shared.reloadAllTimelines() }
+        #endif
+    }
+
+    private func accentPicker(_ title: String, selection: Binding<RitmAccent>) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(RitmAccent.allCases) { option in
+                Label {
+                    Text(option.title)
+                } icon: {
+                    Circle().fill(option.color).frame(width: 14, height: 14)
+                }
+                .tag(option)
             }
         }
     }

@@ -6,21 +6,28 @@ import SwiftUI
     @UIApplicationDelegateAdaptor(RestTimerDelegate.self) private var delegate
     #endif
     @State private var store: JournalStore
-    @State private var health = HealthConnection()
+    @State private var health: HealthConnection
     @State private var watch: WatchLink
+    @AppStorage(RitmAppearance.key) private var appearance = RitmAppearance.system
+    @AppStorage(RitmAccent.appKey) private var appAccent = RitmAccent.lime
 
     init() {
         let journal = JournalStore.live()
         let link = WatchLink()
+        let health = HealthConnection()
+        health.startWidgetUpdates(journal)
         link.onEvent = { event in journal.receiveWatch(event) }
         link.publish(journal.watchSnapshot)
         _store = State(initialValue: journal)
+        _health = State(initialValue: health)
         _watch = State(initialValue: link)
     }
 
     var body: some Scene {
         WindowGroup {
             RootView(store: store, health: health, watch: watch)
+                .environment(\.ritmAccent, appAccent.color)
+                .preferredColorScheme(appearance.scheme)
                 #if os(iOS)
                 .environment(delegate.restTimer)
                 #endif
@@ -37,6 +44,7 @@ import SwiftUI
 #endif
 
 struct RootView: View {
+    @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     let health: HealthConnection
     var watch: WatchLink? = nil
@@ -46,6 +54,7 @@ struct RootView: View {
     #endif
     @State private var tab = Tab.today
     @State private var showWorkout = false
+    @State private var showAppearance = false
     @State private var historyRecord: UUID?
     @State private var today = Date.now
 
@@ -61,6 +70,7 @@ struct RootView: View {
                             historyRecord = id
                             tab = .history
                         },
+                        openAppearance: { showAppearance = true },
                         now: today
                     )
                         .tabItem { Label("Сегодня", systemImage: "house") }.tag(Tab.today)
@@ -83,7 +93,8 @@ struct RootView: View {
             }
         }
         .foregroundStyle(Theme.primary)
-        .tint(Theme.accent)
+        .tint(accent)
+        .sheet(isPresented: $showAppearance) { AppearanceSettings() }
         .modifier(WorkoutPresentation(show: $showWorkout) {
             SessionView(store: store, health: health) { record in
                 tab = .history
@@ -94,7 +105,7 @@ struct RootView: View {
                         store.mergePulse(points, workoutID: record.id)
                     }
                 }
-            }.tint(Theme.accent)
+            }.tint(accent)
         })
         .onChange(of: scene, initial: true) { _, phase in
             #if os(iOS)
@@ -106,7 +117,10 @@ struct RootView: View {
             if phase == .active {
                 today = .now
                 store.publishWidgets()
-                if tab == .health { Task { await health.refresh(store) } }
+                Task {
+                    health.startWidgetUpdates(store)
+                    if tab == .health { await health.refresh(store) } else { await health.refreshWidgetData(store) }
+                }
                 Task { await health.exportPending(store) }
             }
         }
@@ -121,7 +135,9 @@ struct RootView: View {
         .task {
             for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged) {
                 today = .now
-                if scene == .active && tab == .health { await health.refresh(store) }
+                if scene == .active {
+                    if tab == .health { await health.refresh(store) } else { await health.refreshWidgetData(store) }
+                }
             }
         }
         .onOpenURL { url in
@@ -134,6 +150,12 @@ struct RootView: View {
             if url.host == "today" {
                 tab = .today
                 if store.journal.activeWorkout != nil { showWorkout = true }
+            }
+            if url.host == "health" {
+                showAppearance = false
+                showWorkout = false
+                historyRecord = nil
+                tab = .health
             }
         }
         .onChange(of: store.watchSnapshot, initial: true) { _, snapshot in

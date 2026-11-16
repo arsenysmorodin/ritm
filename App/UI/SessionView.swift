@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SessionView: View {
+    @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     let health: HealthConnection
     var onFinish: (WorkoutRecord) -> Void
@@ -140,7 +141,7 @@ struct SessionView: View {
         return VStack(alignment: .leading, spacing: Theme.Space.xs) {
             Text(hasDrops ? "Этапы" : "Подходы").font(.subheadline).foregroundStyle(Theme.secondary)
             Text("\(draft.marked) / \(draft.total)").font(Theme.timer).fixedSize()
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(accent)
                 .contentTransition(.numericText(value: Double(draft.marked)))
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: draft.marked)
                 .accessibilityLabel("\(draft.marked) из \(draft.total)")
@@ -236,10 +237,10 @@ struct SessionView: View {
         .padding(.leading, step.set.dropStage == nil ? Theme.Space.sm : Theme.Space.lg)
         .padding(.trailing, Theme.Space.xs)
         .padding(.vertical, Theme.Space.xs)
-        .background(next ? Theme.accent.opacity(0.07) : Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+        .background(next ? accent.opacity(0.07) : Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
         .overlay {
             RoundedRectangle(cornerRadius: Theme.Radius.control)
-                .strokeBorder(next ? Theme.accent : Theme.border, lineWidth: next ? 2 : 1)
+                .strokeBorder(next ? accent : Theme.border, lineWidth: next ? 2 : 1)
                 .allowsHitTesting(false)
         }
     }
@@ -296,7 +297,7 @@ struct SessionView: View {
                     toggle(step)
                 } label: {
                     Image(systemName: set.complete ? "checkmark.circle.fill" : "circle")
-                        .font(.title2).foregroundStyle(set.complete ? Theme.accent : Theme.secondary)
+                        .font(.title2).foregroundStyle(set.complete ? accent : Theme.secondary)
                         .frame(width: Theme.touch, height: Theme.touch)
                 }
                 .buttonStyle(PressStyle())
@@ -424,6 +425,7 @@ struct SetSelection: Identifiable {
 }
 
 private struct PreviousSetButton: View {
+    @Environment(\.ritmAccent) private var accent
     let previous: PreviousSet
     let unit: ExerciseUnit
     let matches: Bool
@@ -445,7 +447,7 @@ private struct PreviousSetButton: View {
             }
             Spacer(minLength: Theme.Space.xs)
             Image(systemName: matches ? "checkmark" : "arrow.turn.down.left")
-                .foregroundStyle(matches ? Theme.secondary : Theme.accent)
+                .foregroundStyle(matches ? Theme.secondary : accent)
                 .accessibilityHidden(true)
         }
         .padding(.horizontal, Theme.Space.sm)
@@ -502,7 +504,6 @@ private struct SetEditor: View {
                     }
                 }
             }
-            .formTint()
             .navigationTitle(selection.set.dropStage.map { "Дроп \($0)" } ?? "Подход \(selection.index)")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }

@@ -36,6 +36,7 @@ struct TechniqueCard: View {
 }
 
 private struct TechniqueDrawing: View {
+    @Environment(\.ritmAccent) private var accent
     let frame: TechniqueFrame
 
     var body: some View {
@@ -54,7 +55,7 @@ private struct TechniqueDrawing: View {
 
             line([(7, 94), (103, 94)], color: Theme.border, width: 1)
             for prop in frame.props { line(prop, color: Theme.secondary, width: 2.4) }
-            if let band = frame.band { line(band, color: Theme.accent, width: 1.5) }
+            if let band = frame.band { line(band, color: accent, width: 1.5) }
             line(frame.pose.rearLeg, color: Theme.secondary, width: 4)
             line(frame.pose.rearArm, color: Theme.secondary, width: 3.6)
             line(frame.pose.torso, color: Theme.reference, width: 8)

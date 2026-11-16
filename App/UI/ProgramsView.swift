@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProgramsView: View {
+    @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     let start: (Routine?) -> Void
     @State private var editing: Program?
@@ -14,7 +15,7 @@ struct ProgramsView: View {
             PageHeader(title: "Программы", caption: "Тренировочные дни") {
                 if !store.journal.programs.isEmpty {
                     Button { editing = Program(name: "", routines: []) } label: {
-                        IconBadge(icon: "plus", color: Theme.accent)
+                        IconBadge(icon: "plus", color: accent)
                     }.buttonStyle(PressStyle()).accessibilityLabel("Создать программу")
                 }
             }
@@ -33,7 +34,7 @@ struct ProgramsView: View {
                                     .fixedSize(horizontal: false, vertical: true).accessibilityAddTraits(.isHeader)
                                 if active {
                                     Label("Активная программа", systemImage: "checkmark.circle.fill")
-                                        .font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
+                                        .font(.caption.weight(.semibold)).foregroundStyle(accent)
                                 } else {
                                     Text(Format.workouts(program.routines.count)).font(.caption).foregroundStyle(Theme.secondary)
                                 }
@@ -184,7 +185,6 @@ struct ProgramEditor: View {
                     Button("Добавить тренировку", systemImage: "plus") { routine = Routine(name: "") }
                 }
             }
-            .formTint()
             .navigationTitle("Программа")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
@@ -273,7 +273,6 @@ struct RoutineEditor: View {
                 MuscleMap(muscles: .combined(draft.exercises.map(\.muscles)), title: "Мышцы тренировочного дня")
                     .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
             }
-            .formTint()
             .navigationTitle("Тренировка")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
@@ -353,7 +352,6 @@ private struct ExerciseBlockEditor: View {
                     Text(draft.kind == .superset ? "Выберите два упражнения." : "Выберите минимум три упражнения.")
                 }
             }
-            .formTint()
             .navigationTitle("Суперсет или круг")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
@@ -367,6 +365,7 @@ private struct ExerciseBlockEditor: View {
 }
 
 struct ExerciseEditor: View {
+    @Environment(\.ritmAccent) private var accent
     @State private var draft: ExercisePlan
     @State private var weight: String
     @State private var target: String
@@ -443,7 +442,6 @@ struct ExerciseEditor: View {
                 }
                 if draft.unit == .repetitions && ((kilograms ?? 0) > 0 || !drops.isEmpty) { dropSection }
             }
-            .formTint()
             .navigationTitle("Упражнение")
             .sheet(isPresented: $showCatalog) {
                 NavigationStack {
@@ -488,7 +486,7 @@ struct ExerciseEditor: View {
                 let number = (drops.firstIndex { $0.id == id } ?? 0) + 1
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text("Этап \(number)").font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
+                        Text("Этап \(number)").font(.caption.weight(.semibold)).foregroundStyle(accent)
                         Spacer()
                         Button(role: .destructive) { drops.removeAll { $0.id == id } } label: {
                             Image(systemName: "trash").frame(minWidth: 44, minHeight: 44)
@@ -593,7 +591,6 @@ private struct MuscleEditor: View {
                 }
             }
         }
-        .formTint()
         .navigationTitle("Группы мышц")
     }
 

@@ -2,6 +2,7 @@ import Foundation
 import Observation
 #if os(iOS) && RITM_HEALTHKIT
 import HealthKit
+import WidgetKit
 #endif
 
 @MainActor @Observable final class HealthConnection {
@@ -14,6 +15,8 @@ import HealthKit
     var issue: String?
     private(set) var exportIssue: (id: UUID, message: String)?
     private var refreshID = UUID()
+    private(set) var widgetSnapshot = WidgetStorage.load(HealthWidgetSnapshot.self, file: HealthWidgetSnapshot.file)
+    private(set) var widgetError: String?
 
     #if os(iOS) && RITM_HEALTHKIT
     private let store = HKHealthStore()
@@ -21,8 +24,12 @@ import HealthKit
     private let energyType = HKQuantityType(.activeEnergyBurned)
     private let massType = HKQuantityType(.bodyMass)
     private let pulseType = HKQuantityType(.heartRate)
-    private var reads: Set<HKObjectType> { [stepsType, energyType, massType, pulseType] }
+    private var reads: Set<HKObjectType> {
+        Set<HKObjectType>([stepsType, energyType, massType]).union(HealthWidgetReader.types)
+    }
     private let workoutType = HKObjectType.workoutType()
+    private let widgetReader = HealthWidgetReader()
+    private var widgetRequest: (id: UUID, task: Task<HealthWidgetSnapshot, Error>)?
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
     private(set) var canWrite = false
@@ -35,6 +42,8 @@ import HealthKit
         do {
             try await store.requestAuthorization(toShare: [workoutType], read: reads)
             journal.change { $0.healthEnabled = true }
+            startWidgetUpdates(journal)
+            widgetReader.enableBackgroundUpdates()
         } catch {
             issue = "Не удалось открыть доступ к «Здоровью». Проверьте разрешения и попробуйте снова."
         }
@@ -55,11 +64,51 @@ import HealthKit
         let window = HKQuery.predicateForSamples(withStart: Calendar.current.startOfDay(for: now), end: now, options: .strictStartDate)
         async let stepTotal = total(stepsType, unit: .count(), window: window)
         async let energyTotal = total(energyType, unit: .kilocalorie(), window: window)
+        async let widgetUpdate: Void = refreshWidgetData(journal)
         let result = await (stepTotal, energyTotal)
         guard refreshID == request, journal.journal.healthEnabled else { return }
         steps = result.0
         activeEnergy = result.1
         isReading = false
+        await widgetUpdate
+    }
+
+    func startWidgetUpdates(_ journal: JournalStore) {
+        guard isAvailable, journal.isReadable, journal.journal.healthEnabled else { return }
+        widgetReader.start { [weak self, weak journal] in
+            if let journal { await self?.refreshWidgetData(journal) }
+        }
+    }
+
+    func refreshWidgetData(_ journal: JournalStore) async {
+        guard isAvailable, journal.isReadable, journal.journal.healthEnabled else { return }
+        if let request = widgetRequest {
+            _ = try? await request.task.value
+            return
+        }
+        let id = UUID()
+        let task = Task { try await widgetReader.snapshot() }
+        widgetRequest = (id, task)
+        defer { if widgetRequest?.id == id { widgetRequest = nil } }
+        do {
+            let snapshot = try await task.value
+            guard widgetRequest?.id == id, journal.journal.healthEnabled else { return }
+            widgetError = nil
+            let cached = WidgetStorage.load(HealthWidgetSnapshot.self, file: HealthWidgetSnapshot.file)
+            if snapshot != cached {
+                try WidgetStorage.write(snapshot, file: HealthWidgetSnapshot.file)
+                reloadHealthWidgets()
+            }
+            widgetSnapshot = snapshot
+        } catch {
+            guard widgetRequest?.id == id, journal.journal.healthEnabled else { return }
+            widgetError = "Данные для виджетов пока не обновились. Повторите с разблокированным iPhone."
+        }
+    }
+
+    private func reloadHealthWidgets() {
+        WidgetCenter.shared.reloadTimelines(ofKind: HealthWidgetSnapshot.heartKind)
+        WidgetCenter.shared.reloadTimelines(ofKind: HealthWidgetSnapshot.nutritionKind)
     }
 
     func refreshWeight(_ journal: JournalStore) async {
@@ -191,10 +240,21 @@ import HealthKit
     func recentPulse(from start: Date, through end: Date) async -> [PulsePoint] { [] }
     func requestExport(_ id: UUID, from journal: JournalStore) async {}
     func exportPending(_ journal: JournalStore, first: UUID? = nil) async {}
+    func startWidgetUpdates(_ journal: JournalStore) {}
+    func refreshWidgetData(_ journal: JournalStore) async {}
     #endif
 
     func disconnect(_ journal: JournalStore) {
         if journal.change({ $0.healthEnabled = false }) {
+            #if os(iOS) && RITM_HEALTHKIT
+            widgetReader.stop()
+            widgetRequest?.task.cancel()
+            widgetRequest = nil
+            widgetSnapshot = nil
+            widgetError = nil
+            try? WidgetStorage.remove(file: HealthWidgetSnapshot.file)
+            reloadHealthWidgets()
+            #endif
             clearMetrics()
             issue = nil
             exportIssue = nil

@@ -42,27 +42,51 @@ struct WidgetSnapshot: Codable, Equatable {
     }
 
     static func load() -> WidgetSnapshot? {
-        guard let url = storageURL, let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(Self.self, from: data)
+        WidgetStorage.load(Self.self, file: "snapshot.json")
     }
 
     static func write(_ snapshot: Self) throws {
-        guard let file = storageURL else { throw CocoaError(.fileWriteNoPermission) }
+        try WidgetStorage.write(snapshot, file: "snapshot.json")
+    }
+}
+
+enum WidgetStorage {
+    private static var groupID: String? {
+        Bundle.main.object(forInfoDictionaryKey: "RitmWidgetGroup") as? String
+    }
+
+    static var preferences: UserDefaults {
+        groupID.flatMap { UserDefaults(suiteName: $0) } ?? .standard
+    }
+
+    static func load<T: Decodable>(_ type: T.Type, file: String) -> T? {
+        guard let url = url(for: file), let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+
+    static func write(_ value: some Encodable, file name: String) throws {
+        guard let file = url(for: name) else { throw CocoaError(.fileWriteNoPermission) }
         var folder = file.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         #if os(iOS)
         var properties = URLResourceValues()
         properties.isExcludedFromBackup = true
         try folder.setResourceValues(properties)
-        try JSONEncoder().encode(snapshot).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try JSONEncoder().encode(value).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         #else
-        try JSONEncoder().encode(snapshot).write(to: file, options: .atomic)
+        try JSONEncoder().encode(value).write(to: file, options: .atomic)
         #endif
     }
 
-    private static var storageURL: URL? {
-        guard let groupID = Bundle.main.object(forInfoDictionaryKey: "RitmWidgetGroup") as? String, !groupID.isEmpty,
+    static func remove(file: String) throws {
+        guard let url = url(for: file) else { return }
+        do { try FileManager.default.removeItem(at: url) }
+        catch let error as CocoaError where error.code == .fileNoSuchFile {}
+    }
+
+    private static func url(for name: String) -> URL? {
+        guard let groupID, !groupID.isEmpty,
               let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID) else { return nil }
-        return root.appending(path: "Widget", directoryHint: .isDirectory).appending(path: "snapshot.json")
+        return root.appending(path: "Widget", directoryHint: .isDirectory).appending(path: name)
     }
 }

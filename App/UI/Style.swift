@@ -61,6 +61,7 @@ struct Panel<Content: View>: View {
 }
 
 struct ActionButton: View {
+    @Environment(\.ritmAccent) private var accent
     let title: String
     let icon: String
     var solid = true
@@ -77,7 +78,7 @@ struct ActionButton: View {
                 .padding(.horizontal, Theme.Space.md)
                 .padding(.vertical, Theme.Space.sm)
                 .frame(maxWidth: .infinity, minHeight: Theme.actionHeight)
-                .background(solid && enabled ? Theme.accent : Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                .background(solid && enabled ? accent : Theme.elevated, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
         }
         .buttonStyle(PressStyle())
     }
@@ -98,6 +99,7 @@ struct ActionDock<Content: View>: View {
 }
 
 struct MetricValue: View {
+    @Environment(\.ritmAccent) private var accent
     let title: String
     let value: String
     var prominence = false
@@ -105,7 +107,7 @@ struct MetricValue: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.xs) {
             Text(title).font(.subheadline).foregroundStyle(Theme.secondary)
-            Text(value).font(Theme.metric).foregroundStyle(prominence ? Theme.accent : Theme.primary)
+            Text(value).font(Theme.metric).foregroundStyle(prominence ? accent : Theme.primary)
         }
         .accessibilityElement(children: .combine)
     }
@@ -257,9 +259,6 @@ extension View {
         #endif
     }
 
-    func formTint() -> some View {
-        self.tint(Theme.accent)
-    }
 }
 
 extension WorkoutKind {
