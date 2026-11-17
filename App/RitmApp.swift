@@ -57,6 +57,7 @@ struct RootView: View {
     @State private var showAppearance = false
     @State private var showBackup = false
     @State private var historyRecord: UUID?
+    @State private var historyProgress: TrainingProgressView.Section?
     @State private var healthPath: [RecoverySection] = []
     @State private var today = Date.now
 
@@ -78,7 +79,7 @@ struct RootView: View {
                         .tabItem { Label("Сегодня", systemImage: "house") }.tag(Tab.today)
                     ProgramsView(store: store, start: start)
                         .tabItem { Label("Программы", systemImage: "square.stack") }.tag(Tab.programs)
-                    HistoryView(store: store, health: health, selected: $historyRecord)
+                    HistoryView(store: store, health: health, selected: $historyRecord, progress: $historyProgress)
                         .tabItem { Label("История", systemImage: "clock.arrow.circlepath") }.tag(Tab.history)
                     HealthView(store: store, health: health, path: $healthPath)
                         .tabItem { Label("Здоровье", systemImage: "heart") }.tag(Tab.health)
@@ -151,10 +152,12 @@ struct RootView: View {
         }
         .onOpenURL { url in
             guard url.scheme == "ritm" else { return }
-            if url.host == "history" {
+            if url.host == "history" || url.host == "weight" {
+                showAppearance = false
                 showWorkout = false
                 historyRecord = nil
                 tab = .history
+                historyProgress = url.host == "weight" ? .weight : nil
             }
             if url.host == "today" {
                 tab = .today
@@ -164,6 +167,7 @@ struct RootView: View {
                 showAppearance = false
                 showWorkout = false
                 historyRecord = nil
+                historyProgress = nil
                 switch host {
                 case "recovery": healthPath = [.overview]
                 case "sleep": healthPath = [.sleep]

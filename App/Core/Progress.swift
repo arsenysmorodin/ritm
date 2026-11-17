@@ -1,21 +1,5 @@
 import Foundation
 
-struct WeightPoint: Identifiable, Equatable {
-    let id: UUID
-    let date: Date
-    let kilograms: Double
-
-    static func latestPerDay(_ samples: [Self], calendar: Calendar) -> [Self] {
-        var latest: [Date: Self] = [:]
-        for sample in samples where sample.kilograms.isFinite && sample.kilograms > 0 {
-            let day = calendar.startOfDay(for: sample.date)
-            if let previous = latest[day], previous.date > sample.date { continue }
-            latest[day] = sample
-        }
-        return latest.values.sorted { $0.date < $1.date }
-    }
-}
-
 struct ExerciseProgress: Identifiable {
     let id: String
     var name: String

@@ -8,20 +8,6 @@ private struct RitmEntry: TimelineEntry {
     let palette = WidgetPalette(selection: widgetAccent())
 }
 
-func widgetAccent() -> RitmAccent {
-    WidgetStorage.preferences.string(forKey: RitmAccent.widgetKey).flatMap(RitmAccent.init(rawValue:)) ?? .lime
-}
-
-struct WidgetPalette {
-    let selection: RitmAccent
-
-    var accent: Color { selection.color }
-    var primary: Color { selection == .monochrome ? accent : Theme.primary }
-    var secondary: Color { selection == .monochrome ? Color("WidgetMonoSecondary") : Theme.secondary }
-    var surface: Color { selection == .monochrome ? Color("WidgetMonoSurface") : Theme.surface }
-    var elevated: Color { selection == .monochrome ? Color("WidgetMonoElevated") : Theme.elevated }
-}
-
 private struct RitmProvider: TimelineProvider {
     func placeholder(in context: Context) -> RitmEntry {
         RitmEntry(date: .now, snapshot: WidgetSnapshot(activeWorkout: nil, completedSets: 0,
@@ -38,39 +24,29 @@ private struct RitmProvider: TimelineProvider {
         let tomorrow = Calendar.current.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0), matchingPolicy: .nextTime) ?? now.addingTimeInterval(3600)
         completion(Timeline(entries: [.init(date: now, snapshot: snapshot), .init(date: tomorrow, snapshot: snapshot)], policy: .atEnd))
     }
-
-
 }
 
 private struct NextWorkoutWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: WidgetSnapshot.workoutKind, provider: RitmProvider()) { entry in
             let palette = entry.palette
-            VStack(alignment: .leading, spacing: 7) {
-                Label {
-                    Text(entry.snapshot?.activeWorkout == nil ? "Тренировка" : "В процессе")
-                        .foregroundStyle(entry.snapshot?.activeWorkout == nil ? palette.secondary : palette.accent)
-                } icon: {
-                    Image(systemName: "dumbbell.fill").foregroundStyle(palette.accent).widgetAccentable()
-                }
-                .font(.caption.weight(.semibold))
-                Spacer(minLength: 4)
-                Text(entry.snapshot?.activeWorkout ?? entry.snapshot?.suggestion(at: entry.date) ?? "Открыть «Ритм»")
-                    .font(.title3.weight(.semibold)).minimumScaleFactor(0.7).lineLimit(3)
-                    .privacySensitive()
-                if let summary = entry.snapshot, summary.activeWorkout != nil {
-                    Text("\(summary.completedSets) из \(summary.totalSets) подходов").font(.caption2).foregroundStyle(palette.secondary)
-                    if summary.totalSets > 0 {
-                        ProgressView(value: Double(summary.completedSets), total: Double(summary.totalSets))
-                            .tint(palette.accent).accessibilityHidden(true)
+            let active = entry.snapshot?.activeWorkout != nil
+            WidgetCard(palette: palette) {
+                VStack(alignment: .leading, spacing: 6) {
+                    WidgetHeader(title: active ? "В процессе" : "Тренировка", icon: "dumbbell", palette: palette)
+                    WidgetRule(palette: palette)
+                    Spacer(minLength: 2)
+                    Text(entry.snapshot?.activeWorkout ?? entry.snapshot?.suggestion(at: entry.date) ?? "Открыть «Ритм»")
+                        .font(.title2.weight(.semibold)).minimumScaleFactor(0.7).lineLimit(3)
+                        .privacySensitive()
+                    if let summary = entry.snapshot, active {
+                        Text("\(summary.completedSets) из \(summary.totalSets) подходов").font(.caption2).foregroundStyle(palette.secondary)
+                        WidgetProgressStrip(value: Double(summary.completedSets), total: Double(summary.totalSets), palette: palette)
+                    } else if entry.snapshot?.suggestion(at: entry.date) != nil {
+                        Text("По вашей программе").font(.caption2).foregroundStyle(palette.secondary)
                     }
-                } else {
-                    Text("Перейти к тренировке").font(.caption2).foregroundStyle(palette.secondary)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .foregroundStyle(palette.primary)
-            .containerBackground(palette.surface, for: .widget)
             .widgetURL(URL(string: "ritm://today"))
         }
         .configurationDisplayName("Тренировка «Ритм»")
@@ -85,32 +61,31 @@ private struct TrainingWeekWidget: Widget {
             let palette = entry.palette
             let values = entry.snapshot?.week(at: entry.date) ?? Array(repeating: 0, count: 7)
             let total = values.reduce(0, +)
-            VStack(alignment: .leading, spacing: 8) {
-                Label {
-                    Text("Эта неделя").foregroundStyle(palette.secondary)
-                } icon: {
-                    Image(systemName: "calendar").foregroundStyle(palette.accent).widgetAccentable()
-                }
-                .font(.caption.weight(.semibold))
-                Spacer(minLength: 0)
-                if let snapshot = entry.snapshot {
-                    Text("\(total) из \(snapshot.weeklyGoal)").font(Theme.metric)
-                    HStack(spacing: 3) {
-                        ForEach(Array(values.enumerated()), id: \.offset) { offset, count in
-                            VStack(spacing: 3) {
-                                Capsule().fill(count > 0 ? palette.accent : palette.elevated).frame(height: 8)
-                                Text(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][offset]).font(.system(size: 8)).foregroundStyle(palette.secondary)
+            WidgetCard(palette: palette) {
+                VStack(alignment: .leading, spacing: 6) {
+                    WidgetHeader(title: "Эта неделя", icon: "calendar", palette: palette)
+                    Spacer(minLength: 0)
+                    if let snapshot = entry.snapshot {
+                        WidgetNumber(value: "\(total)", unit: "из \(snapshot.weeklyGoal)", palette: palette)
+                        WidgetRule(palette: palette)
+                        HStack(alignment: .bottom, spacing: 3) {
+                            ForEach(Array(values.enumerated()), id: \.offset) { offset, count in
+                                VStack(spacing: 4) {
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(count > 0 ? palette.accent : palette.secondary.opacity(0.25))
+                                        .frame(height: count > 0 ? 19 : 3)
+                                        .widgetAccentable(count > 0)
+                                    Text(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][offset]).font(.system(size: 8))
+                                        .foregroundStyle(palette.secondary)
+                                }
                             }
-                        }
-                    }.accessibilityHidden(true)
-                } else {
-                    Text("Открыть журнал").font(.headline)
+                        }.accessibilityHidden(true)
+                    } else {
+                        WidgetEmpty(text: "Откройте журнал в «Ритме».", palette: palette)
+                    }
                 }
+                .accessibilityElement(children: .combine)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
-            .foregroundStyle(palette.primary)
-            .containerBackground(palette.surface, for: .widget)
             .widgetURL(URL(string: "ritm://history"))
         }
         .configurationDisplayName("Неделя «Ритм»")
@@ -121,24 +96,29 @@ private struct TrainingWeekWidget: Widget {
 
 private struct RestTimerActivity: Widget {
     // The Lock Screen host and widget content can resolve different appearances.
-    private let lockSurface = Color(red: 22 / 255, green: 27 / 255, blue: 33 / 255)
+    private let lockSurface = Color(red: 19 / 255, green: 25 / 255, blue: 32 / 255)
     private let lockText = Color(red: 244 / 255, green: 245 / 255, blue: 247 / 255)
     private let lockAccent = Color(red: 185 / 255, green: 231 / 255, blue: 107 / 255)
     private let lockWarning = Color(red: 242 / 255, green: 185 / 255, blue: 111 / 255)
 
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RestActivityAttributes.self) { context in
-            HStack(spacing: Theme.Space.md) {
+            HStack(spacing: 12) {
                 Label {
                     Text(context.isStale ? "Отдых завершён" : "Отдых")
                         .font(.headline)
                 } icon: {
+                    let color = context.isStale ? lockAccent : lockWarning
                     Image(systemName: context.isStale ? "checkmark.circle.fill" : "timer")
-                        .foregroundStyle(context.isStale ? lockAccent : lockWarning)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(color)
+                        .frame(width: 30, height: 30)
+                        .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
                 }
                 Spacer(minLength: Theme.Space.sm)
                 if !context.isStale {
-                    countdown(context).font(Theme.timer).multilineTextAlignment(.trailing)
+                    countdown(context).font(.system(.title, design: .monospaced, weight: .semibold))
+                        .minimumScaleFactor(0.65).lineLimit(1).multilineTextAlignment(.trailing)
                 }
             }
             .padding(Theme.Space.lg)
@@ -187,6 +167,12 @@ private struct RestTimerActivity: Widget {
         SleepStagesWidget()
         SleepMeasurementsWidget()
         SleepScheduleWidget()
+        HealthTodayWidget()
+        StepsWidget()
+        ActiveEnergyWidget()
+        BodyWeightWidget()
+        RestingPulseWidget()
+        WeeklySleepDurationWidget()
         RestTimerActivity()
     }
 }

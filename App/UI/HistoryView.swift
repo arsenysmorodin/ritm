@@ -6,14 +6,14 @@ struct HistoryView: View {
     let store: JournalStore
     let health: HealthConnection
     @Binding var selected: UUID?
-    @State private var showProgress = false
+    @Binding var progress: TrainingProgressView.Section?
     @State private var deleting: WorkoutRecord?
 
     var body: some View {
         let records = store.journal.records
         Page {
             PageHeader(title: "История", caption: "Завершённые тренировки") { EmptyView() }
-            ActionButton(title: "Прогресс", icon: "chart.line.uptrend.xyaxis", solid: false) { showProgress = true }
+            ActionButton(title: "Прогресс", icon: "chart.line.uptrend.xyaxis", solid: false) { progress = .exercises }
             if records.isEmpty {
                 HintPanel(icon: "list.bullet.rectangle", title: "Здесь появится первая запись", text: "Завершите тренировку, чтобы сохранить время, подходы и заметки.")
             } else {
@@ -26,7 +26,9 @@ struct HistoryView: View {
                 }
             }
         }
-        .sheet(isPresented: $showProgress) { NavigationStack { TrainingProgressView(store: store, health: health) } }
+        .sheet(item: $progress) { section in
+            NavigationStack { TrainingProgressView(store: store, health: health, startingAt: section) }
+        }
         .sheet(isPresented: Binding(get: { selected != nil }, set: { if !$0 { selected = nil } })) {
             if let record = store.journal.records.first(where: { $0.id == selected }) {
                 NavigationStack {

@@ -1,7 +1,7 @@
 import SwiftUI
 import WidgetKit
 
-private struct RecoveryEntry: TimelineEntry {
+struct RecoveryEntry: TimelineEntry {
     let date: Date
     let snapshot: RecoverySnapshot?
     let palette: WidgetPalette
@@ -13,7 +13,7 @@ private struct RecoveryEntry: TimelineEntry {
     }
 }
 
-private struct RecoveryTimeline: TimelineProvider {
+struct RecoveryTimeline: TimelineProvider {
     func placeholder(in context: Context) -> RecoveryEntry {
         let calendar = Calendar.current
         let now = Date.now
@@ -123,8 +123,7 @@ struct SleepScheduleWidget: Widget {
 
 private func recoveryConfiguration(_ kind: RecoveryWidgetKind) -> some WidgetConfiguration {
     StaticConfiguration(kind: kind.rawValue, provider: RecoveryTimeline()) { entry in
-        RecoveryTileView(kind: kind, entry: entry)
-            .containerBackground(entry.palette.surface, for: .widget)
+        WidgetCard(palette: entry.palette) { RecoveryTileView(kind: kind, entry: entry) }
             .widgetURL(kind.url)
     }
     .configurationDisplayName(kind.title)
@@ -143,9 +142,7 @@ private struct RecoveryTileView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: large ? 11 : 5) {
-            Label(kind.label, systemImage: kind.icon)
-                .font(.subheadline.weight(.semibold)).foregroundStyle(palette.accent)
-                .lineLimit(1).minimumScaleFactor(0.7).widgetAccentable()
+            WidgetHeader(title: kind.label, icon: kind.icon, palette: palette)
             if let snapshot = entry.snapshot {
                 switch kind {
                 case .recovery: recovery(snapshot)
@@ -157,8 +154,6 @@ private struct RecoveryTileView: View {
                 empty("Подключите Apple «Здоровье» в «Ритме».")
             }
         }
-        .foregroundStyle(palette.primary)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .privacySensitive()
     }
 
@@ -174,7 +169,7 @@ private struct RecoveryTileView: View {
             }
             if let night = day.sleep {
                 if small {
-                    Text(SleepText.duration(night.sleptSeconds)).font(.headline).monospacedDigit()
+                    WidgetNumber(value: SleepText.duration(night.sleptSeconds), palette: palette, size: .title2)
                 } else {
                     goalProgress(night, showLabel: large)
                 }
@@ -192,7 +187,7 @@ private struct RecoveryTileView: View {
                     comparable(.restingPulse, day: day, snapshot: snapshot)
                 }
                 if large {
-                    Divider()
+                    WidgetRule(palette: palette)
                     comparable(.respiration, day: day, snapshot: snapshot)
                     Text("Диапазоны по предыдущим 28 дням · минимум 7 дней с одного источника.")
                         .font(.caption).foregroundStyle(palette.secondary)
@@ -209,9 +204,7 @@ private struct RecoveryTileView: View {
             let layout = small ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
                 : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
             layout {
-                Text(SleepText.duration(night.sleptSeconds))
-                    .font((small ? Font.title3 : Font.title2).weight(.semibold)).monospacedDigit()
-                    .lineLimit(1).minimumScaleFactor(0.68)
+                WidgetNumber(value: SleepText.duration(night.sleptSeconds), palette: palette, size: small ? .title3 : .title2)
                 Text(SleepText.shortDate(night.day) + " · " + SleepText.period(night))
                     .font(.caption2).foregroundStyle(palette.secondary).lineLimit(1).minimumScaleFactor(0.7)
             }
@@ -225,6 +218,7 @@ private struct RecoveryTileView: View {
                 }
                 Spacer(minLength: 0)
             } else if night.stagedSeconds > 0 {
+                WidgetRule(palette: palette)
                 SleepPhaseChart(night: night, accent: palette.accent, secondary: palette.secondary)
                     .frame(maxHeight: .infinity)
                 if large {
@@ -258,7 +252,7 @@ private struct RecoveryTileView: View {
                     metricCell("Пульс в покое", metric: .restingPulse, day: day)
                 }
                 if large, let night = day.sleep {
-                    Divider()
+                    WidgetRule(palette: palette)
                     if let awake = night.phaseSeconds(.awake) {
                         phaseRow(.awake, night: night)
                             .accessibilityLabel("Записанное бодрствование")
@@ -284,6 +278,7 @@ private struct RecoveryTileView: View {
     @ViewBuilder private func schedule(_ schedule: SleepSchedule) -> some View {
         if schedule.nights > 0 {
             Text("\(schedule.nights) из 7 с записью").font(.caption2).foregroundStyle(palette.secondary)
+            WidgetRule(palette: palette)
             SleepScheduleChart(schedule: schedule, accent: palette.accent, secondary: palette.secondary, compact: small)
                 .frame(maxHeight: .infinity)
             if !small {
@@ -317,9 +312,8 @@ private struct RecoveryTileView: View {
     private func metricCell(_ label: String, metric: RecoveryMetric, day: RecoveryDay) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.caption2).foregroundStyle(palette.secondary).lineLimit(1).minimumScaleFactor(0.7)
-            Text(day.readings[metric].map { metric.formatted($0.value) } ?? "—")
-                .font((large ? Font.headline : Font.subheadline).weight(.semibold)).monospacedDigit()
-                .lineLimit(1).minimumScaleFactor(0.65)
+            WidgetNumber(value: day.readings[metric].map { metric.formatted($0.value) } ?? "—",
+                         palette: palette, size: large ? .title3 : .subheadline)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(metric.title)
@@ -362,8 +356,7 @@ private struct RecoveryTileView: View {
     private func goalProgress(_ night: SleepNight, showLabel: Bool = true) -> some View {
         let goal = max(1, Double(entry.sleepGoal) * 60)
         return VStack(alignment: .leading, spacing: 2) {
-            ProgressView(value: min(night.sleptSeconds, goal), total: goal)
-                .tint(palette.accent).accessibilityLabel("Прогресс цели сна")
+            WidgetProgressStrip(value: night.sleptSeconds, total: goal, palette: palette)
             if showLabel {
                 Text("Цель · " + SleepText.duration(minutes: entry.sleepGoal))
                     .font(.caption).foregroundStyle(palette.secondary)
@@ -372,7 +365,6 @@ private struct RecoveryTileView: View {
     }
 
     private func empty(_ text: String) -> some View {
-        Text(text).font(.caption).foregroundStyle(palette.secondary)
-            .frame(maxHeight: .infinity, alignment: .center)
+        WidgetEmpty(text: text, palette: palette)
     }
 }

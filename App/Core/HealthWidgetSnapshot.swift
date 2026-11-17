@@ -99,3 +99,65 @@ struct HealthWidgetSnapshot: Codable, Equatable {
             sourceName.lowercased().split(whereSeparator: { !$0.isLetter }).contains("fatsecret")
     }
 }
+
+struct WeightPoint: Codable, Identifiable, Equatable {
+    let id: UUID
+    let date: Date
+    let kilograms: Double
+
+    static func latestPerDay(_ samples: [Self], calendar: Calendar) -> [Self] {
+        var latest: [Date: Self] = [:]
+        for sample in samples where sample.kilograms.isFinite && sample.kilograms > 0 {
+            let day = calendar.startOfDay(for: sample.date)
+            if let previous = latest[day], previous.date > sample.date { continue }
+            latest[day] = sample
+        }
+        return latest.values.sorted { $0.date < $1.date }
+    }
+}
+
+struct ActivityDay: Codable, Equatable, Identifiable {
+    var id: Date { date }
+    let date: Date
+    let steps: Int?
+    let activeEnergy: Int?
+}
+
+struct ActivityWidgetSnapshot: Codable, Equatable {
+    static let file = "activity.json"
+    static let summaryKind = "RitmHealthToday"
+    static let stepsKind = "RitmSteps"
+    static let energyKind = "RitmActiveEnergy"
+    static let weightKind = "RitmWeight"
+    static let widgetKinds = [summaryKind, stepsKind, energyKind, weightKind]
+
+    let days: [ActivityDay]
+    let weights: [WeightPoint]
+
+    func day(at date: Date, calendar: Calendar = .current) -> ActivityDay? {
+        days.first { $0.date == calendar.startOfDay(for: date) }
+    }
+
+    func week(endingAt date: Date, calendar: Calendar = .current) -> [ActivityDay] {
+        let today = calendar.startOfDay(for: date)
+        return (-6...0).compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { return nil }
+            return self.day(at: day, calendar: calendar) ?? ActivityDay(date: day, steps: nil, activeEnergy: nil)
+        }
+    }
+
+    func recentWeights(at date: Date, calendar: Calendar = .current) -> [WeightPoint] {
+        let start = calendar.date(byAdding: .day, value: -29, to: calendar.startOfDay(for: date)) ?? date
+        return weights.filter { (start...date).contains($0.date) }
+    }
+
+    func lastWeight(at date: Date) -> WeightPoint? {
+        weights.last { $0.date <= date }
+    }
+
+    func forWidgets(at date: Date, calendar: Calendar = .current) -> Self {
+        let recent = recentWeights(at: date, calendar: calendar)
+        let visible = recent.isEmpty ? lastWeight(at: date).map { [$0] } ?? [] : recent
+        return Self(days: days, weights: visible)
+    }
+}

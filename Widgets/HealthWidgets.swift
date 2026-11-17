@@ -52,8 +52,7 @@ private struct HealthTimeline: TimelineProvider {
 struct HeartWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: HealthWidgetSnapshot.heartKind, provider: HealthTimeline()) { entry in
-            HeartWidgetView(entry: entry)
-                .containerBackground(entry.palette.surface, for: .widget)
+            WidgetCard(palette: entry.palette) { HeartWidgetView(entry: entry) }
                 .widgetURL(URL(string: "ritm://health"))
         }
         .configurationDisplayName("Пульс и ВСР")
@@ -72,33 +71,24 @@ private struct HeartWidgetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: expanded ? 12 : 6) {
-            Label("Пульс и ВСР", systemImage: "waveform.path.ecg")
-                .font(.subheadline.weight(.semibold)).foregroundStyle(palette.accent)
-                .widgetAccentable()
+            WidgetHeader(title: "Пульс и ВСР", icon: "waveform.path.ecg", palette: palette)
             if let snapshot = entry.snapshot {
                 readings(snapshot)
                 if compact {
                     Spacer(minLength: 0)
                 } else {
+                    WidgetRule(palette: palette)
                     let points = snapshot.isToday(entry.date) ? snapshot.hrv.today : []
                     if points.isEmpty {
-                        Text("Нет замеров ВСР за сегодня")
-                            .font(.caption)
-                            .foregroundStyle(palette.secondary)
-                            .frame(maxHeight: .infinity, alignment: .center)
+                        WidgetEmpty(text: "Нет замеров ВСР за сегодня", palette: palette)
                     } else {
                         variabilityChart(points)
                     }
                 }
             } else {
-                Spacer(minLength: 0)
-                Text("Подключите Apple «Здоровье» в «Ритме».")
-                    .font(.caption).foregroundStyle(palette.secondary)
-                Spacer(minLength: 0)
+                WidgetEmpty(text: "Подключите Apple «Здоровье» в «Ритме».", palette: palette)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .foregroundStyle(palette.primary)
         .privacySensitive()
     }
 
@@ -115,9 +105,7 @@ private struct HeartWidgetView: View {
         VStack(alignment: .leading, spacing: 1) {
             Text(title).font(.caption.weight(.medium)).foregroundStyle(palette.secondary)
             if let reading {
-                Text("\(format(reading.value)) \(unit)")
-                    .font((expanded ? Font.title2 : .headline).weight(.semibold)).monospacedDigit()
-                    .lineLimit(1).minimumScaleFactor(0.73)
+                WidgetNumber(value: WidgetText.number(reading.value), unit: unit, palette: palette, size: expanded ? .title2 : .headline)
                 Text(timeOf(reading.date))
                     .font(.caption2).foregroundStyle(palette.secondary)
                     .lineLimit(1).minimumScaleFactor(0.75)
@@ -142,6 +130,7 @@ private struct HeartWidgetView: View {
         let low = points.map(\.value).min() ?? 0
         let high = points.map(\.value).max() ?? 1
         let padding = max(3, (high - low) / 8)
+        let ticks = high - low < 5 ? [low] : expanded ? [low, low + (high - low) / 2, high] : [low, high]
         return Chart(points) { point in
             LineMark(x: .value("Время", point.date), y: .value("ВСР, мс", point.value))
                 .foregroundStyle(palette.accent)
@@ -164,11 +153,15 @@ private struct HeartWidgetView: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: expanded ? 5 : 3)) { value in
-                if let value = value.as(Double.self) {
-                    AxisValueLabel(format(value)).font(.caption2).foregroundStyle(palette.secondary)
-                }
+            AxisMarks(position: .leading, values: ticks) { _ in
                 AxisGridLine().foregroundStyle(palette.secondary.opacity(0.24))
+            }
+            AxisMarks(position: .leading, values: ticks) { value in
+                if let value = value.as(Double.self) {
+                    AxisValueLabel {
+                        Text(WidgetText.number(value)).font(.caption2).foregroundStyle(palette.secondary)
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -179,8 +172,7 @@ private struct HeartWidgetView: View {
 struct NutritionWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: HealthWidgetSnapshot.nutritionKind, provider: HealthTimeline()) { entry in
-            NutritionWidgetView(entry: entry)
-                .containerBackground(entry.palette.surface, for: .widget)
+            WidgetCard(palette: entry.palette) { NutritionWidgetView(entry: entry) }
                 .widgetURL(URL(string: "ritm://health"))
         }
         .configurationDisplayName("Питание FatSecret")
@@ -198,23 +190,16 @@ private struct NutritionWidgetView: View {
         let small = family == .systemSmall
         let full = family == .systemLarge
         let hasData = entry.snapshot?.isToday(entry.date) == true && entry.snapshot?.nutrition.isEmpty == false
-        VStack(alignment: .leading, spacing: small ? 5 : 9) {
-            HStack(alignment: .firstTextBaseline) {
-                Label("Питание", systemImage: "fork.knife")
-                    .font(.subheadline.weight(.semibold)).foregroundStyle(palette.accent).widgetAccentable()
-                if !small {
-                    Spacer(minLength: 4)
-                    Text("Сегодня · FatSecret").font(.caption).foregroundStyle(palette.secondary)
-                }
-            }
+        VStack(alignment: .leading, spacing: small ? 4 : (full ? 12 : 6)) {
+            WidgetHeader(title: "Питание", icon: "fork.knife", palette: palette, context: small ? nil : "FatSecret")
             if let energy = amount(.energy) {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(format(energy, fraction: false)).font((small ? Font.title2 : .largeTitle).weight(.semibold)).monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.64)
-                    Text(goalLabel(.energy) ?? "ккал").font(.caption).foregroundStyle(palette.secondary)
-                        .lineLimit(1).minimumScaleFactor(0.7)
+                WidgetNumber(value: WidgetText.number(energy, fraction: 0), unit: goalLabel(.energy) ?? "ккал", palette: palette,
+                             size: small ? .title2 : .largeTitle)
+                if !small, let goal = entry.targets.nutrition[.energy] {
+                    WidgetProgressStrip(value: energy, total: Double(goal), palette: palette)
+                } else {
+                    WidgetRule(palette: palette)
                 }
-                .accessibilityElement(children: .combine)
             } else {
                 Text("Калории: нет данных").font(.caption).foregroundStyle(palette.secondary)
             }
@@ -222,16 +207,14 @@ private struct NutritionWidgetView: View {
                 Text(entry.snapshot == nil ? "Подключите «Здоровье» в «Ритме»." : "Нет записей FatSecret за сегодня.")
                     .font(.caption).foregroundStyle(palette.secondary)
             }
-            Spacer(minLength: 0)
             let core: [Nutrient] = [.protein, .fat, .carbs, .fiber]
             let items = full ? core + [.sugar, .saturatedFat, .sodium] : core
             let columns = Array(repeating: GridItem(.flexible(), spacing: 5, alignment: .leading), count: small || full ? 2 : 4)
-            LazyVGrid(columns: columns, alignment: .leading, spacing: small ? 4 : 10) {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: small ? 3 : 10) {
                 ForEach(items, id: \.self) { item in nutrient(item) }
             }
+            Spacer(minLength: 0)
         }
-        .foregroundStyle(palette.primary)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .privacySensitive()
     }
 
@@ -240,14 +223,14 @@ private struct NutritionWidgetView: View {
     }
 
     private func goalLabel(_ nutrient: Nutrient) -> String? {
-        entry.targets.nutrition[nutrient].map { "из \(format(Double($0), fraction: false)) \(nutrient.unit)" }
+        entry.targets.nutrition[nutrient].map { "из \(WidgetText.number(Double($0), fraction: 0)) \(nutrient.unit)" }
     }
 
     private func nutrient(_ kind: Nutrient) -> some View {
         let wide = family == .systemLarge
         let value = amount(kind)
         let goal = entry.targets.nutrition[kind]
-        let current = value.map { "\(format($0)) " + (goalLabel(kind) ?? kind.unit) }
+        let current = value.map { "\(WidgetText.number($0)) " + (goalLabel(kind) ?? kind.unit) }
         return VStack(alignment: .leading, spacing: 1) {
             Text(kind.title).font(wide ? .subheadline : .caption2)
                 .foregroundStyle(kind == .fiber ? palette.accent : palette.secondary)
@@ -257,16 +240,11 @@ private struct NutritionWidgetView: View {
                 .foregroundStyle(kind == .fiber && value != nil ? palette.accent : palette.primary)
                 .lineLimit(1).minimumScaleFactor(0.75)
             if wide, let goal, let value {
-                ProgressView(value: min(value, Double(goal)), total: Double(goal)).tint(palette.accent)
-                    .accessibilityHidden(true)
+                WidgetProgressStrip(value: value, total: Double(goal), palette: palette)
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(kind.title)
         .accessibilityValue(current ?? "Нет данных")
     }
-}
-
-private func format(_ number: Double, fraction: Bool = true) -> String {
-    number.formatted(.number.precision(.fractionLength(0...(fraction ? 1 : 0))).locale(Locale(identifier: "ru_RU")))
 }

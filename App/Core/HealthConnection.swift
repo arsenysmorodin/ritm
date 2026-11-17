@@ -20,21 +20,21 @@ import WidgetKit
     private(set) var recoverySnapshot = WidgetStorage.load(RecoverySnapshot.self, file: RecoverySnapshot.file)
     private(set) var recoveryError: String?
     private(set) var isReadingRecovery = false
+    private(set) var activityError: String?
 
     #if os(iOS) && RITM_HEALTHKIT
     private let store = HKHealthStore()
-    private let stepsType = HKQuantityType(.stepCount)
-    private let energyType = HKQuantityType(.activeEnergyBurned)
-    private let massType = HKQuantityType(.bodyMass)
     private let pulseType = HKQuantityType(.heartRate)
     private var reads: Set<HKObjectType> {
-        Set<HKObjectType>([stepsType, energyType, massType]).union(HealthWidgetReader.types).union(RecoveryReader.types)
+        Set<HKObjectType>(ActivityWidgetReader.types).union(HealthWidgetReader.types).union(RecoveryReader.types)
     }
     private let workoutType = HKObjectType.workoutType()
     private let widgetReader = HealthWidgetReader()
     private let recoveryReader = RecoveryReader()
+    private let activityReader = ActivityWidgetReader()
     private var widgetRequest: (id: UUID, task: Task<HealthWidgetSnapshot, Error>)?
     private var recoveryRequest: (id: UUID, task: Task<RecoverySnapshot, Error>)?
+    private var activityRequest: (id: UUID, task: Task<Void, Never>)?
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
     private(set) var canWrite = false
@@ -50,6 +50,7 @@ import WidgetKit
             startWidgetUpdates(journal)
             widgetReader.enableBackgroundUpdates()
             recoveryReader.enableBackgroundUpdates()
+            activityReader.enableBackgroundUpdates()
         } catch {
             issue = "Не удалось открыть доступ к «Здоровью». Проверьте разрешения и попробуйте снова."
         }
@@ -66,15 +67,9 @@ import WidgetKit
         let request = UUID()
         refreshID = request
         isReading = true
-        let now = Date.now
-        let window = HKQuery.predicateForSamples(withStart: Calendar.current.startOfDay(for: now), end: now, options: .strictStartDate)
-        async let stepTotal = total(stepsType, unit: .count(), window: window)
-        async let energyTotal = total(energyType, unit: .kilocalorie(), window: window)
-        async let widgetUpdate: Void = refreshWidgetData(journal)
-        let result = await (stepTotal, energyTotal)
+        async let widgetUpdate: Void = refreshHeartAndSleep(journal)
+        await refreshActivity(journal)
         guard refreshID == request, journal.journal.healthEnabled else { return }
-        steps = result.0
-        activeEnergy = result.1
         isReading = false
         await widgetUpdate
     }
@@ -87,12 +82,57 @@ import WidgetKit
         recoveryReader.start { [weak self, weak journal] in
             if let journal { await self?.refreshRecovery(journal) }
         }
+        activityReader.start { [weak self, weak journal] in
+            if let journal { await self?.refreshActivity(journal) }
+        }
     }
 
     func refreshWidgetData(_ journal: JournalStore) async {
+        async let heartAndSleep: Void = refreshHeartAndSleep(journal)
+        await refreshActivity(journal)
+        await heartAndSleep
+    }
+
+    private func refreshHeartAndSleep(_ journal: JournalStore) async {
         async let vitals: Void = refreshVitalsWidgets(journal)
         await refreshRecovery(journal)
         await vitals
+    }
+
+    private func refreshActivity(_ journal: JournalStore) async {
+        guard isAvailable, journal.isReadable, journal.journal.healthEnabled else { return }
+        if let activityRequest {
+            await activityRequest.task.value
+            return
+        }
+        let id = UUID()
+        let task = Task {
+            defer { if activityRequest?.id == id { activityRequest = nil } }
+            do {
+                let snapshot = try await activityReader.snapshot()
+                guard activityRequest?.id == id, journal.journal.healthEnabled else { return }
+                let now = Date.now
+                let day = snapshot.day(at: now)
+                steps = day?.steps
+                activeEnergy = day?.activeEnergy
+                weightHistory = snapshot.weights
+                let visible = snapshot.forWidgets(at: now)
+                if visible != WidgetStorage.load(ActivityWidgetSnapshot.self, file: ActivityWidgetSnapshot.file) {
+                    try WidgetStorage.write(visible, file: ActivityWidgetSnapshot.file)
+                    reloadActivityWidgets()
+                }
+                activityError = nil
+            } catch {
+                guard activityRequest?.id == id, journal.journal.healthEnabled else { return }
+                activityError = "Не удалось обновить движение и вес. Потяните экран вниз для повтора."
+            }
+        }
+        activityRequest = (id, task)
+        await task.value
+    }
+
+    private func reloadActivityWidgets() {
+        for kind in ActivityWidgetSnapshot.widgetKinds { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
     }
 
     private func refreshVitalsWidgets(_ journal: JournalStore) async {
@@ -160,22 +200,15 @@ import WidgetKit
 
     private func reloadRecoveryWidgets() {
         for kind in RecoverySnapshot.widgetKinds { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
+        WidgetCenter.shared.reloadTimelines(ofKind: ActivityWidgetSnapshot.summaryKind)
     }
 
     func refreshWeight(_ journal: JournalStore) async {
         guard isAvailable, journal.journal.healthEnabled else { return }
         await refreshPermissionStatus()
-        let calendar = Calendar.current
-        let start = calendar.date(byAdding: .day, value: -364, to: calendar.startOfDay(for: .now)) ?? .distantPast
-        let filter = HKQuery.predicateForSamples(withStart: start, end: .now, options: .strictStartDate)
-        let descriptor = HKSampleQueryDescriptor(predicates: [.quantitySample(type: massType, predicate: filter)], sortDescriptors: [])
-        let samples = (try? await descriptor.result(for: store)) ?? []
+        let points = try? await activityReader.weightHistory()
         guard journal.journal.healthEnabled, !Task.isCancelled else { return }
-        let kilograms = HKUnit.gramUnit(with: .kilo)
-        let points = samples.map { sample in
-            WeightPoint(id: sample.uuid, date: sample.startDate, kilograms: sample.quantity.doubleValue(for: kilograms))
-        }
-        weightHistory = WeightPoint.latestPerDay(points, calendar: calendar)
+        if let points { weightHistory = points }
     }
 
     private func refreshPermissionStatus() async {
@@ -193,12 +226,6 @@ import WidgetKit
             guard (20...300).contains(bpm) else { return nil }
             return PulsePoint(date: sample.endDate, bpm: Int(bpm.rounded()))
         }
-    }
-
-    private func total(_ type: HKQuantityType, unit: HKUnit, window: NSPredicate) async -> Int? {
-        let query = HKStatisticsQueryDescriptor(predicate: .quantitySample(type: type, predicate: window), options: .cumulativeSum)
-        guard let sample = try? await query.result(for: store), let sum = sample.sumQuantity() else { return nil }
-        return Int(sum.doubleValue(for: unit).rounded())
     }
 
     func requestExport(_ id: UUID, from journal: JournalStore) async {
@@ -314,6 +341,12 @@ import WidgetKit
             isReadingRecovery = false
             try? WidgetStorage.remove(file: RecoverySnapshot.file)
             reloadRecoveryWidgets()
+            activityReader.stop()
+            activityRequest?.task.cancel()
+            activityRequest = nil
+            activityError = nil
+            try? WidgetStorage.remove(file: ActivityWidgetSnapshot.file)
+            reloadActivityWidgets()
             #endif
             clearMetrics()
             issue = nil

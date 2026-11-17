@@ -53,6 +53,7 @@ struct HealthView: View {
                 heartPanel(health.widgetSnapshot)
                 nutritionPanel(health.widgetSnapshot)
                 if let issue = health.widgetError { Panel { StatusMessage(text: issue) } }
+                if let issue = health.activityError { Panel { StatusMessage(text: issue) } }
             } else {
                 ActionButton(title: "Цели питания", icon: "target", solid: false) { showNutritionGoals = true }
             }

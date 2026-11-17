@@ -5,19 +5,27 @@ struct TrainingProgressView: View {
     @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     let health: HealthConnection
-    @State private var section: Section = .exercises
-    @State private var period: Period = .quarter
+    @State private var section: Section
+    @State private var period: Period
     @State private var loadingWeight = true
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scene
     @Environment(\.dynamicTypeSize) private var textSize
 
-    private enum Section: String, CaseIterable {
+    enum Section: String, CaseIterable, Identifiable {
         case exercises = "Упражнения", muscles = "Мышцы", weight = "Вес тела"
+        var id: Self { self }
     }
     private enum Period: Int, CaseIterable {
         case month = 30, quarter = 90, year = 365
         var title: String { "\(rawValue) дн." }
+    }
+
+    init(store: JournalStore, health: HealthConnection, startingAt section: Section = .exercises) {
+        self.store = store
+        self.health = health
+        _section = State(initialValue: section)
+        _period = State(initialValue: section == .weight ? .month : .quarter)
     }
 
     var body: some View {

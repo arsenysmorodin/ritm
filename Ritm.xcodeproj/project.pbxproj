@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D80000000000000000000011 /* ActivityWidgetReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80000000000000000000001; };
+		D80000000000000000000012 /* WidgetDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80000000000000000000002; };
+		D80000000000000000000013 /* MoreHealthWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80000000000000000000003; };
 		D70000000000000000000011 /* Recovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = D70000000000000000000001 /* Recovery.swift */; };
 		D70000000000000000000012 /* Recovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = D70000000000000000000001 /* Recovery.swift */; };
 		D70000000000000000000013 /* RecoveryReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D70000000000000000000002 /* RecoveryReader.swift */; };
@@ -63,6 +66,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		D80000000000000000000001 /* ActivityWidgetReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityWidgetReader.swift; sourceTree = "<group>"; };
+		D80000000000000000000002 /* WidgetDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDesign.swift; sourceTree = "<group>"; };
+		D80000000000000000000003 /* MoreHealthWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreHealthWidgets.swift; sourceTree = "<group>"; };
 		D70000000000000000000001 /* Recovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recovery.swift; sourceTree = "<group>"; };
 		D70000000000000000000002 /* RecoveryReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryReader.swift; sourceTree = "<group>"; };
 		D70000000000000000000003 /* SleepCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepCharts.swift; sourceTree = "<group>"; };
@@ -139,6 +145,7 @@
 				D60000000000000000000002 /* HealthWidgetReader.swift */,
 				D70000000000000000000001 /* Recovery.swift */,
 				D70000000000000000000002 /* RecoveryReader.swift */,
+				D80000000000000000000001 /* ActivityWidgetReader.swift */,
 				D70000000000000000000007 /* WorkoutKind.swift */,
 				B00000000000000000000007 /* WatchLink.swift */,
 				B00000000000000000000005 /* Pulse.swift */,
@@ -229,7 +236,7 @@
 			sourceTree = "<group>";
 		};
 		C10000000000000000000003 = {isa = PBXGroup; children = (C10000000000000000000001, C10000000000000000000002,); path = Watch; sourceTree = "<group>"; };
-		C20000000000000000000003 = {isa = PBXGroup; children = (C20000000000000000000001, D60000000000000000000003, D70000000000000000000005,); path = Widgets; sourceTree = "<group>"; };
+		C20000000000000000000003 = {isa = PBXGroup; children = (C20000000000000000000001, D60000000000000000000003, D70000000000000000000005, D80000000000000000000002, D80000000000000000000003,); path = Widgets; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -325,6 +332,7 @@
 				D60000000000000000000013 /* HealthWidgetReader.swift in Sources */,
 				D70000000000000000000011 /* Recovery.swift in Sources */,
 				D70000000000000000000013 /* RecoveryReader.swift in Sources */,
+				D80000000000000000000011 /* ActivityWidgetReader.swift in Sources */,
 				D70000000000000000000014 /* SleepCharts.swift in Sources */,
 				D70000000000000000000016 /* RecoveryView.swift in Sources */,
 				D70000000000000000000018 /* BackupView.swift in Sources */,
@@ -353,7 +361,7 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C10000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000020, C10000000000000000000021, C10000000000000000000022, C10000000000000000000023, D40000000000000000000012,); runOnlyForDeploymentPostprocessing = 0; };
-		C20000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C20000000000000000000020, C20000000000000000000021, D40000000000000000000013, D50000000000000000000012, D60000000000000000000012, D60000000000000000000014, D70000000000000000000012, D70000000000000000000015, D70000000000000000000017,); runOnlyForDeploymentPostprocessing = 0; };
+		C20000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C20000000000000000000020, C20000000000000000000021, D40000000000000000000013, D50000000000000000000012, D60000000000000000000012, D60000000000000000000014, D70000000000000000000012, D70000000000000000000015, D70000000000000000000017, D80000000000000000000012, D80000000000000000000013,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXContainerItemProxy section */

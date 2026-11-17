@@ -217,7 +217,9 @@ enum RecoveryWidgetKind: String, CaseIterable {
 
 struct RecoverySnapshot: Codable, Equatable {
     static let file = "recovery.json"
-    static let widgetKinds = RecoveryWidgetKind.allCases.map(\.rawValue)
+    static let restingPulseKind = "RitmRestingPulse"
+    static let weeklyDurationKind = "RitmWeeklySleepDuration"
+    static let widgetKinds = RecoveryWidgetKind.allCases.map(\.rawValue) + [restingPulseKind, weeklyDurationKind]
     static let defaultSleepMinutes = 480
     static let sleepGoalRange = 180...720
 
