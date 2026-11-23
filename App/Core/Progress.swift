@@ -48,9 +48,18 @@ struct ExerciseProgress: Identifiable {
 
 extension ExercisePlan {
     var historyKey: String {
-        let key = isCustom == true ? "user:\(id)" :
+        let key = isCustom == true ? "user:\(customID ?? id)" :
             ExerciseCatalog.find(self)?.id ?? "custom:\(ExerciseCatalog.normalize(name))"
         return key + ":\(unit.rawValue)"
+    }
+
+    var isUserDefined: Bool { isCustom == true || ExerciseCatalog.find(self) == nil }
+
+    func placedInRoutine(id placementID: UUID = UUID()) -> Self {
+        var placed = self
+        if isCustom == true { placed.customID = customID ?? id }
+        placed.id = placementID
+        return placed
     }
 }
 

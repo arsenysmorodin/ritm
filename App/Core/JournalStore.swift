@@ -78,7 +78,9 @@ struct JournalBackup: Codable {
         guard isReadable else { return false }
         let previousRest = journal.activeWorkout?.rest
         var next = journal
+        next.retainCustomExercises()
         update(&next)
+        next.retainCustomExercises()
         do {
             try JournalFile.save(next, to: url)
             journal = next
@@ -103,6 +105,7 @@ struct JournalBackup: Codable {
 
     @discardableResult func restore(_ backup: JournalBackup) -> Bool {
         var replacement = backup.journal
+        replacement.retainCustomExercises()
         let previousRest = journal.activeWorkout?.rest
         replacement.healthEnabled = journal.healthEnabled
         replacement.activeWorkout?.restUntil = nil
@@ -127,10 +130,16 @@ struct JournalBackup: Codable {
 
     @discardableResult func save(_ program: Program) -> Bool {
         change {
+            for plan in program.routines.flatMap(\.exercises) { $0.rememberExercise(plan) }
             if let index = $0.programs.firstIndex(where: { $0.id == program.id }) { $0.programs[index] = program }
             else { $0.programs.append(program) }
             if $0.activeProgramID == nil { $0.activeProgramID = program.id }
         }
+    }
+
+    @discardableResult func saveExercise(_ plan: ExercisePlan) -> Bool {
+        guard plan.isUserDefined, !plan.name.trimmed.isEmpty else { return false }
+        return change { $0.rememberExercise(plan) }
     }
 
     func deleteProgram(_ id: UUID) {
@@ -148,7 +157,10 @@ struct JournalBackup: Codable {
     @discardableResult func updateWorkout(_ update: (inout ActiveWorkout) -> Void) -> Bool {
         guard var draft = journal.activeWorkout else { return false }
         update(&draft)
-        return change { $0.activeWorkout = draft }
+        return change {
+            for exercise in draft.exercises { $0.rememberExercise(exercise.plan) }
+            $0.activeWorkout = draft
+        }
     }
 
     func toggleSet(exerciseID: UUID, setID: UUID, at date: Date = .now) {
@@ -196,6 +208,9 @@ struct JournalBackup: Codable {
         let targets = WidgetTargets(nutrition: journal.nutritionGoals ?? NutritionGoals(), sleepMinutes: journal.sleepGoal)
         if targets != WidgetTargets.load(), (try? WidgetStorage.write(targets, file: WidgetTargets.file)) != nil {
             WidgetCenter.shared.reloadTimelines(ofKind: HealthWidgetSnapshot.nutritionKind)
+            WidgetCenter.shared.reloadTimelines(ofKind: "RitmFiber")
+            WidgetCenter.shared.reloadTimelines(ofKind: "RitmProtein")
+            WidgetCenter.shared.reloadTimelines(ofKind: "RitmSleepGoal")
             for kind in RecoverySnapshot.widgetKinds { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
         }
         let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: now) ?? .distantPast

@@ -6,7 +6,7 @@ enum RitmAccent: String, CaseIterable, Identifiable {
 
     static let appKey = "ritm.appearance.accent"
     static let widgetKey = "ritm.widgets.accent"
-    static let appOptions: [Self] = [.lime, .blue, .violet, .amber, .rose]
+    static let appOptions: [Self] = allCases
     var id: Self { self }
 
     var title: String {
@@ -94,6 +94,7 @@ enum Theme {
     enum Radius {
         static let control: CGFloat = 10
         static let panel: CGFloat = 16
+        static let bento: CGFloat = 24
     }
 
     static let touch: CGFloat = 44

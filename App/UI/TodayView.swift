@@ -169,13 +169,16 @@ struct AppearanceSettings: View {
                             Text(mode.title).tag(mode)
                         }
                     }
-                    accentPicker("Акцент приложения", selection: $appAccent, options: RitmAccent.appOptions)
+                    NavigationLink {
+                        AccentSelectionView(selection: $appAccent, widgets: false)
+                    } label: { colorSelection("Цвет приложения", selection: appAccent) }
+                    .accessibilityIdentifier("appearance.appColor")
                 }
                 Section("Виджеты") {
-                    accentPicker("Цвет виджетов", selection: $widgetAccent, options: RitmAccent.allCases)
-                        #if os(iOS)
-                        .pickerStyle(.navigationLink)
-                        #endif
+                    NavigationLink {
+                        AccentSelectionView(selection: $widgetAccent, widgets: true)
+                    } label: { colorSelection("Цвет виджетов", selection: widgetAccent) }
+                    .accessibilityIdentifier("appearance.widgetColor")
                 }
                 Section("Данные") {
                     NavigationLink("Резервная копия") { BackupView(store: store) }
@@ -207,16 +210,60 @@ struct AppearanceSettings: View {
         #endif
     }
 
-    private func accentPicker(_ title: String, selection: Binding<RitmAccent>, options: [RitmAccent]) -> some View {
-        Picker(title, selection: selection) {
-            ForEach(options) { option in
-                Label {
-                    Text(option.title)
-                } icon: {
-                    Circle().fill(option.color).frame(width: 14, height: 14).accessibilityHidden(true)
-                }
-                .tag(option)
-            }
+    private func colorSelection(_ title: String, selection: RitmAccent) -> some View {
+        HStack(spacing: 10) {
+            Text(title).foregroundStyle(Theme.primary)
+            Spacer()
+            Circle().fill(selection.color).frame(width: 16, height: 16).accessibilityHidden(true)
+            Text(selection.title).foregroundStyle(Theme.secondary)
         }
+    }
+}
+
+struct AccentSelectionView: View {
+    @Binding var selection: RitmAccent
+    var widgets: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        Page(spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(widgets ? "Пример виджета" : "Пример темы").font(.headline)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("08").font(.system(.largeTitle, design: .monospaced, weight: .bold))
+                    Text("из 10").font(.subheadline)
+                }
+                Text(widgets ? "Цвет всех виджетов «Ритма»" : "Акцент главной, кнопок и прогресса")
+                    .font(.subheadline.weight(.medium))
+            }
+            .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(Theme.onAccent)
+            .background(selection.color, in: RoundedRectangle(cornerRadius: Theme.Radius.bento))
+            .accessibilityElement(children: .ignore).accessibilityLabel("Пример цвета: \(selection.title)")
+            Text(widgets ? "Палитра виджетов настраивается отдельно от приложения." : "Выберите один из 18 цветов. Палитра виджетов настраивается отдельно.")
+                .font(.subheadline).foregroundStyle(Theme.secondary)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: typeSize.isAccessibilitySize ? 1 : 3), spacing: 10) {
+                ForEach(RitmAccent.allCases) { option in
+                    Button { selection = option } label: {
+                        VStack(spacing: 10) {
+                            ZStack {
+                                Circle().fill(option.color).frame(width: 36, height: 36)
+                                if selection == option {
+                                    Image(systemName: "checkmark").font(.body.weight(.bold)).foregroundStyle(Theme.onAccent)
+                                }
+                            }.accessibilityHidden(true)
+                            Text(option.title).font(.caption.weight(.semibold)).foregroundStyle(Theme.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 86).padding(8)
+                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(selection == option ? option.color : Theme.border, lineWidth: selection == option ? 2 : 1) }
+                    }
+                    .buttonStyle(PressStyle()).accessibilityLabel(option.title)
+                    .accessibilityAddTraits(selection == option ? .isSelected : [])
+                    .accessibilityIdentifier("color.\(option.rawValue)")
+                }
+            }
+        }.navigationTitle(widgets ? "Цвет виджетов" : "Цвет приложения")
     }
 }

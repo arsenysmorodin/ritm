@@ -164,6 +164,8 @@ import WidgetKit
     private func reloadHealthWidgets() {
         WidgetCenter.shared.reloadTimelines(ofKind: HealthWidgetSnapshot.heartKind)
         WidgetCenter.shared.reloadTimelines(ofKind: HealthWidgetSnapshot.nutritionKind)
+        WidgetCenter.shared.reloadTimelines(ofKind: "RitmFiber")
+        WidgetCenter.shared.reloadTimelines(ofKind: "RitmProtein")
     }
 
     func refreshRecovery(_ journal: JournalStore) async {

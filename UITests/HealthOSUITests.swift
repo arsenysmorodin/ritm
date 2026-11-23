@@ -4,12 +4,14 @@ final class HealthOSUITests: XCTestCase {
     private var app: XCUIApplication!
     override func setUp() { super.setUp(); continueAfterFailure = false }
 
-    private func launch(fixtures: Bool = false, dark: Bool = false, large: Bool = false) {
+    private func launch(fixtures: Bool = false, dark: Bool = false, large: Bool = false, compact: Bool = false) {
         app = XCUIApplication()
-        app.launchArguments = ["--ritm-ui-testing", "--ritm-ui-session", UUID().uuidString, "-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU"]
+        app.launchArguments = ["--ritm-ui-testing", "--ritm-ui-session", UUID().uuidString, "--ritm-ui-accent", "lime", "-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU"]
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXL" : "UICTContentSizeCategoryL"]
         if fixtures { app.launchArguments.append("--ritm-ui-fixtures") }
         if dark { app.launchArguments.append("--ritm-ui-dark") }
         if large { app.launchArguments.append("--ritm-ui-large-text") }
+        if compact { app.launchArguments.append("--ritm-ui-compact") }
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Сегодня"].waitForExistence(timeout: 20))
     }
@@ -26,6 +28,24 @@ final class HealthOSUITests: XCTestCase {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { settle.fulfill() }
         wait(for: [settle], timeout: 2)
         let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    private func audit() throws {
+        continueAfterFailure = true
+        defer { continueAfterFailure = false }
+        try app.performAccessibilityAudit(for: [.elementDetection, .sufficientElementDescription, .textClipped])
+    }
+    private func alignWaterForAudit() {
+        // Audit a settled viewport. Partially visible labels from the preceding
+        // card are ordinary ScrollView clipping, not intrinsic text truncation.
+        let heading = app.staticTexts["Вода"].firstMatch
+        XCTAssertTrue(heading.exists)
+        for _ in 0..<4 {
+            let distance = heading.frame.minY - 90
+            if abs(distance) < 12 { break }
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: 0.75))
+            let end = start.withOffset(CGVector(dx: 0, dy: -min(max(distance, -350), 350)))
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.15)
+        }
     }
     private func replace(_ field: XCUIElement, text: String) {
         field.tap()
@@ -103,10 +123,23 @@ final class HealthOSUITests: XCTestCase {
 
     func testLargeTextAndAccessibilityOnWaterScreen() throws {
         launch(large: true)
+        capture("bento-accessibility3")
+        try audit()
         let water = app.buttons["water.add.250"]
         reveal(water); water.tap()
+        alignWaterForAudit()
         capture("water-accessibility3")
-        try app.performAccessibilityAudit(for: [.elementDetection, .sufficientElementDescription, .textClipped])
+        try audit()
+    }
+
+    func testBentoAt320PointsAndResourceEntry() throws {
+        launch(fixtures: true, dark: true, compact: true)
+        capture("bento-320-dark")
+        app.buttons["today.checkIn"].tap()
+        app.buttons["event.save"].tap()
+        XCTAssertTrue(app.buttons["today.checkIn"].waitForExistence(timeout: 5))
+        capture("bento-320-resource")
+        try audit()
     }
 
     func testHealthFirstTabsAndWorkoutNavigation() {
@@ -125,6 +158,58 @@ final class HealthOSUITests: XCTestCase {
         app.buttons["training.history"].tap()
         XCTAssertTrue(app.staticTexts["Завершённые тренировки"].waitForExistence(timeout: 5))
         capture("training-history-area")
+    }
+
+    func testIndependentAppAndWidgetPalettes() {
+        launch(fixtures: true, dark: true)
+        capture("bento-dark-lime")
+        app.buttons["today.settings"].tap()
+        app.buttons["appearance.appColor"].tap()
+        let red = app.buttons["color.red"]
+        reveal(red); red.tap()
+        XCTAssertTrue(red.isSelected)
+        capture("palette-red")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["appearance.widgetColor"].tap()
+        let mono = app.buttons["color.monochrome"]
+        reveal(mono); mono.tap()
+        XCTAssertTrue(mono.isSelected)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["appearance.appColor"].tap()
+        reveal(red); XCTAssertTrue(red.isSelected)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.navigationBars.buttons["Готово"].tap()
+        for _ in 0..<6 { app.swipeDown() }
+        capture("bento-dark-red")
+    }
+
+    func testCustomExercisePersistsAndCanBeReusedInAWorkout() {
+        launch()
+        app.tabBars.buttons["Тренировки"].tap()
+        app.buttons["training.programs"].tap()
+        app.buttons["Каталог упражнений"].tap()
+        app.buttons["exercise.create"].tap()
+        let name = app.textFields["exercise.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap(); name.typeText("Моя тяга у стены")
+        app.navigationBars.buttons["Готово"].tap()
+        let saved = app.buttons["exercise.saved.Моя тяга у стены"]
+        XCTAssertTrue(saved.waitForExistence(timeout: 5))
+        capture("personal-exercise-library")
+        app.terminate(); app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Тренировки"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Тренировки"].tap()
+        let free = app.buttons["Свободная тренировка"]
+        reveal(free); free.tap()
+        let addExercise = app.buttons["Добавить упражнение"]
+        XCTAssertTrue(addExercise.waitForExistence(timeout: 5)); addExercise.tap()
+        app.buttons["Выбрать из каталога"].tap()
+        XCTAssertTrue(saved.waitForExistence(timeout: 5)); saved.tap()
+        app.buttons["Выбрать упражнение"].tap()
+        XCTAssertEqual(app.textFields["exercise.name"].value as? String, "Моя тяга у стены")
+        app.navigationBars.buttons["Готово"].tap()
+        XCTAssertTrue(app.staticTexts["Моя тяга у стены"].waitForExistence(timeout: 5))
+        capture("personal-exercise-in-workout")
     }
 
     func testNewHealthWidgetsInSystemGallery() {
@@ -157,16 +242,17 @@ final class HealthOSUITests: XCTestCase {
         XCTAssertTrue(ritm.waitForExistence(timeout: 5), home.debugDescription)
         ritm.tap()
         var found = Set<String>()
-        for _ in 0..<50 {
-            for title in ["Вода", "Добавки", "Кофеин", "Лента дня"] where !found.contains(title) {
+        let expected = ["Вода", "Добавки", "Кофеин", "Лента дня", "Ресурс на день", "Дневной свет", "Клетчатка", "Белок", "Вода · неделя", "Эксперимент", "Сон · личная цель", "Последний приём пищи"]
+        for _ in 0..<85 {
+            for title in expected where !found.contains(title) {
                 if home.staticTexts[title].firstMatch.exists && home.staticTexts[title].firstMatch.isHittable {
                     found.insert(title)
                     let shot = XCTAttachment(screenshot: home.screenshot()); shot.name = "widget-\(title)"; shot.lifetime = .keepAlways; self.add(shot)
                 }
             }
-            if found.count == 4 { break }
+            if found.count == expected.count { break }
             home.swipeLeft()
         }
-        XCTAssertEqual(found, Set(["Вода", "Добавки", "Кофеин", "Лента дня"]), home.debugDescription)
+        XCTAssertEqual(found, Set(expected), home.debugDescription)
     }
 }

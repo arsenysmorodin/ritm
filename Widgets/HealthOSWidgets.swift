@@ -20,6 +20,7 @@ struct AddWaterIntent: AppIntent {
         try database.save(.water(Double(milliliters)))
         WidgetCenter.shared.reloadTimelines(ofKind: "RitmWater")
         WidgetCenter.shared.reloadTimelines(ofKind: "RitmDayTimeline")
+        WidgetCenter.shared.reloadTimelines(ofKind: "RitmWaterWeek")
         return .result()
     }
 }
@@ -50,6 +51,8 @@ private struct HealthOSEntry: TimelineEntry {
     let date: Date
     let archive: HealthOSArchive?
     let palette = WidgetPalette(selection: widgetAccent())
+    var nutrition = WidgetStorage.load(HealthWidgetSnapshot.self, file: HealthWidgetSnapshot.file)
+    var targets = WidgetTargets.load()
 }
 
 private struct HealthOSProvider: TimelineProvider {
@@ -210,4 +213,238 @@ struct DayTimelineWidget: Widget {
             }.widgetURL(URL(string: "ritm://timeline"))
         }.configurationDisplayName("Лента дня").description("Последние записи вашего Health OS.").supportedFamilies([.systemMedium])
     }
+}
+
+/// Each focus has its own WidgetKit identity and supported sizes.
+/// All values come from the same local journal or existing HealthKit snapshot.
+enum HealthFocus: CaseIterable {
+    case resource, daylight, fiber, protein, waterWeek, experiment, sleepGoal, lastMeal
+    var kind: String {
+        switch self {
+        case .resource: "RitmDailyResource"
+        case .daylight: "RitmDaylight"
+        case .fiber: "RitmFiber"
+        case .protein: "RitmProtein"
+        case .waterWeek: "RitmWaterWeek"
+        case .experiment: "RitmExperiment"
+        case .sleepGoal: "RitmSleepGoal"
+        case .lastMeal: "RitmLastMeal"
+        }
+    }
+    var title: String {
+        switch self {
+        case .resource: "Ресурс на день"
+        case .daylight: "Дневной свет"
+        case .fiber: "Клетчатка"
+        case .protein: "Белок"
+        case .waterWeek: "Вода · неделя"
+        case .experiment: "Эксперимент"
+        case .sleepGoal: "Сон · личная цель"
+        case .lastMeal: "Последний приём пищи"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .resource: "bolt.fill"
+        case .daylight: "sun.max.fill"
+        case .fiber: "carrot.fill"
+        case .protein: "fork.knife"
+        case .waterWeek: "drop.fill"
+        case .experiment: "flask.fill"
+        case .sleepGoal: "moon.zzz.fill"
+        case .lastMeal: "clock"
+        }
+    }
+    var route: String {
+        switch self {
+        case .resource: "check-in"
+        case .daylight: "daylight"
+        case .fiber: "fiber"
+        case .protein: "protein"
+        case .waterWeek: "water"
+        case .experiment: "experiments"
+        case .sleepGoal: "sleep"
+        case .lastMeal: "meal"
+        }
+    }
+    var header: String {
+        switch self {
+        case .lastMeal: "Приём пищи"
+        case .sleepGoal: "Цель сна"
+        default: title
+        }
+    }
+    var description: String {
+        switch self {
+        case .resource: "Ваша оценка энергии, стресса и сонливости сегодня. Нажмите, чтобы обновить."
+        case .daylight: "Минуты дневного света из «Здоровья» и последние семь дней."
+        case .fiber, .protein: "Питание из FatSecret через «Здоровье» и ваша личная цель."
+        case .waterWeek: "Записанный объём воды за семь дней. Пропуски отмечены отдельно."
+        case .experiment: "Текущее условие личного эксперимента."
+        case .sleepGoal: "Последняя доступная ночь и ваша цель продолжительности сна."
+        case .lastMeal: "Время последней записи о еде из вашего журнала или «Здоровья»."
+        }
+    }
+}
+
+private struct HealthFocusConfiguration {
+    let focus: HealthFocus
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: focus.kind, provider: HealthOSProvider()) { entry in
+            HealthFocusView(entry: entry, focus: focus)
+                .widgetURL(URL(string: "ritm://\(focus.route)"))
+                .privacySensitive()
+        }
+        .configurationDisplayName(focus.title).description(focus.description)
+        .supportedFamilies(focus == .waterWeek ? [.systemMedium] : [.systemSmall, .systemMedium])
+    }
+}
+
+private struct HealthFocusView: View {
+    let entry: HealthOSEntry
+    let focus: HealthFocus
+    @Environment(\.widgetFamily) private var family
+    private var palette: WidgetPalette { entry.palette }
+    private var events: [HealthEvent] { entry.archive?.events ?? [] }
+    private var days: [DailyHealth] { HealthOSLogic.dailyValues(entry.archive?.days ?? [], events: events) }
+
+    var body: some View {
+        WidgetCard(palette: palette) {
+            VStack(alignment: .leading, spacing: 6) {
+                WidgetHeader(title: focus.header, icon: focus.icon, palette: palette)
+                WidgetRule(palette: palette)
+                Spacer(minLength: 0)
+                content
+                Spacer(minLength: 0)
+            }
+        }
+    }
+    @ViewBuilder private var content: some View {
+        switch focus {
+        case .resource:
+            if let checkIn = HealthOSLogic.events(events, on: entry.date, kind: .checkIn).first,
+               let energy = checkIn.ratings["energy"] {
+                WidgetNumber(value: "\(energy)", unit: "/ 5 энергии", palette: palette, size: .title)
+                WidgetProgressStrip(value: Double(energy), total: 5, palette: palette)
+                if family == .systemMedium {
+                    Text("Стресс \(checkIn.ratings["stress"].map(String.init) ?? "—")/5 · Сонливость \(checkIn.ratings["sleepiness"].map(String.init) ?? "—")/5")
+                        .font(.caption).foregroundStyle(palette.secondary)
+                }
+                footnote("Ваша оценка · \(time(checkIn.date))")
+            } else { empty("Как вы сегодня? Нажмите, чтобы отметить самочувствие.") }
+        case .fiber, .protein:
+            let nutrient: Nutrient = focus == .fiber ? .fiber : .protein
+            if let value = entry.nutrition?.nutrient(nutrient, at: entry.date) {
+                WidgetNumber(value: HealthEvent.number(value), unit: "г", palette: palette,
+                             size: family == .systemSmall ? .title2 : .largeTitle)
+                if let goal = entry.targets.nutrition[nutrient] {
+                    WidgetProgressStrip(value: value, total: Double(goal), palette: palette)
+                    footnote("Личная цель · \(goal) г")
+                }
+                footnote("FatSecret → Здоровье")
+            } else { empty("Нет записей за сегодня. Откройте «Ритм» для обновления питания.") }
+        case .daylight:
+            let day = days.last { Calendar.current.isDate($0.date, inSameDayAs: entry.date) }
+            if let value = day?.values[.daylightMinutes] {
+                WidgetNumber(value: HealthEvent.number(value), unit: "мин сегодня", palette: palette, size: .title)
+                weekBars { date in days.first { Calendar.current.isDate($0.date, inSameDayAs: date) }?.values[.daylightMinutes] }
+            } else { empty("Минуты дневного света появятся после синхронизации со «Здоровьем».") }
+        case .waterWeek:
+            let total = HealthOSLogic.total(.water, events: events, day: entry.date)
+            HStack(alignment: .firstTextBaseline) {
+                WidgetNumber(value: HealthEvent.number(total), unit: "мл сегодня", palette: palette, size: .title)
+                Spacer(minLength: 0)
+                Text("Цель \(entry.archive?.settings.waterGoal ?? 2000) мл").font(.caption2).foregroundStyle(palette.secondary)
+            }
+            weekBars { date in
+                let logs = HealthOSLogic.events(events, on: date, kind: .water)
+                return logs.isEmpty ? nil : logs.reduce(0) { $0 + ($1.amount ?? 0) }
+            }
+        case .experiment:
+            if let experiment = entry.archive?.experiments.first(where: { !$0.finished && $0.assignment(on: entry.date) != nil }),
+               let assignment = experiment.assignment(on: entry.date) {
+                Text(experiment.title).font(.headline).lineLimit(2).minimumScaleFactor(0.8)
+                HStack(alignment: .top, spacing: 8) {
+                    Text(assignment.isB ? "B" : "A").font(.system(.title2, design: .monospaced, weight: .bold)).foregroundStyle(palette.accent)
+                    Text(assignment.isB ? experiment.conditionB : experiment.conditionA)
+                        .font(.caption).lineLimit(2).foregroundStyle(palette.secondary)
+                }
+                if family == .systemMedium && assignment.adaptation { footnote("День адаптации") }
+            } else { empty("Нет активного эксперимента. Проверьте одну привычку в «Ритме».") }
+        case .sleepGoal:
+            if let day = days.last(where: { $0.date <= entry.date && entry.date.timeIntervalSince($0.date) < 3 * 86400 && $0.values[.sleepMinutes] != nil }),
+               let minutes = day.values[.sleepMinutes] {
+                WidgetNumber(value: "\(Int(minutes) / 60)ч \(Int(minutes) % 60)м", palette: palette, size: .title)
+                WidgetProgressStrip(value: minutes, total: Double(entry.targets.sleepMinutes), palette: palette)
+                footnote("Цель \(entry.targets.sleepMinutes / 60)ч \(entry.targets.sleepMinutes % 60)м · \(day.date.formatted(.dateTime.day().month(.twoDigits)))")
+            } else { empty("Нет недавних записей сна. Обновите данные в «Ритме».") }
+        case .lastMeal:
+            if let meal = events.filter({ !$0.deleted && $0.kind == .meal && $0.date <= entry.date && entry.date.timeIntervalSince($0.date) < 36 * 3600 }).max(by: { $0.date < $1.date }) {
+                WidgetNumber(value: time(meal.date), palette: palette, size: .title)
+                Text(meal.title).font(.caption.weight(.medium)).lineLimit(2)
+                footnote(Calendar.current.isDate(meal.date, inSameDayAs: entry.date) ? "Последняя запись · сегодня" : meal.date.formatted(.dateTime.day().month(.twoDigits)))
+            } else { empty("Нет недавних записей о еде. Нажмите, чтобы добавить приём пищи.") }
+        }
+    }
+
+    private func empty(_ text: String) -> some View { WidgetEmpty(text: text, palette: palette) }
+    private func footnote(_ text: String) -> some View {
+        Text(text).font(.caption2).foregroundStyle(palette.secondary).lineLimit(2).minimumScaleFactor(0.8)
+    }
+    private func time(_ date: Date) -> String { date.formatted(date: .omitted, time: .shortened) }
+    private func weekBars(value: (Date) -> Double?) -> some View {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: entry.date)
+        let dates = (-6...0).compactMap { calendar.date(byAdding: .day, value: $0, to: today) }
+        let values = dates.map(value), maximum = max(values.compactMap { $0 }.max() ?? 1, 1)
+        return HStack(alignment: .bottom, spacing: 4) {
+            ForEach(Array(dates.enumerated()), id: \.offset) { index, date in
+                VStack(spacing: 3) {
+                    VStack {
+                        Spacer(minLength: 0)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(values[index] == nil ? palette.secondary.opacity(0.25) : palette.accent)
+                            .frame(height: values[index].map { max(3, $0 / maximum * 28) } ?? 2)
+                            .widgetAccentable(values[index] != nil)
+                    }.frame(height: 28)
+                    Text(values[index] == nil ? "—" : date.formatted(.dateTime.weekday(.narrow)))
+                        .font(.system(size: 9)).foregroundStyle(palette.secondary)
+                }.frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(date.formatted(.dateTime.day().month())): \(values[index].map { HealthEvent.number($0) } ?? "нет записей") \(focus == .daylight ? "минут" : "миллилитров")")
+            }
+        }
+    }
+}
+
+struct DailyResourceWidget: Widget {
+    var body: some WidgetConfiguration { HealthFocusConfiguration(focus: .resource).body }
+}
+
+struct DaylightWidget: Widget {
+    var body: some WidgetConfiguration { HealthFocusConfiguration(focus: .daylight).body }
+}
+
+struct FiberWidget: Widget {
+    var body: some WidgetConfiguration { HealthFocusConfiguration(focus: .fiber).body }
+}
+
+struct ProteinWidget: Widget {
+    var body: some WidgetConfiguration { HealthFocusConfiguration(focus: .protein).body }
+}
+
+struct WaterWeekWidget: Widget {
+    var body: some WidgetConfiguration { HealthFocusConfiguration(focus: .waterWeek).body }
+}
+
+struct ExperimentWidget: Widget {
+    var body: some WidgetConfiguration { HealthFocusConfiguration(focus: .experiment).body }
+}
+
+struct SleepGoalWidget: Widget {
+    var body: some WidgetConfiguration { HealthFocusConfiguration(focus: .sleepGoal).body }
+}
+
+struct LastMealWidget: Widget {
+    var body: some WidgetConfiguration { HealthFocusConfiguration(focus: .lastMeal).body }
 }

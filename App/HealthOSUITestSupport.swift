@@ -18,8 +18,18 @@ import SwiftUI
         #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         UserDefaults.standard.set(arguments.contains("--ritm-ui-dark") ? "dark" : "light", forKey: RitmAppearance.key)
+        if let flag = arguments.firstIndex(of: "--ritm-ui-accent"), arguments.indices.contains(flag + 1),
+           let accent = RitmAccent(rawValue: arguments[flag + 1]) {
+            UserDefaults.standard.set(accent.rawValue, forKey: RitmAccent.appKey)
+        }
         #endif
-        return JournalStore(url: root.appending(path: "journal.json"))
+        let store = JournalStore(url: root.appending(path: "journal.json"))
+        #if DEBUG && targetEnvironment(simulator)
+        if arguments.contains("--ritm-widget-fixtures") {
+            _ = store.change { $0.nutritionGoals = NutritionGoals(amounts: [.fiber: 30, .protein: 120]) }
+        }
+        #endif
+        return store
     }
 
     static func healthOS() -> HealthOSStore {
@@ -27,6 +37,18 @@ import SwiftUI
         if ProcessInfo.processInfo.arguments.contains("--ritm-widget-fixtures") {
             let shared = HealthOSStore()
             if shared.events.isEmpty && shared.archive.days.isEmpty && shared.supplements.isEmpty { _ = shared.restore(fixtures()) }
+            if HealthOSLogic.events(shared.events, on: .now, kind: .checkIn).isEmpty {
+                _ = shared.log(HealthEvent(kind: .checkIn, date: .now.addingTimeInterval(-600), title: "Пример · самочувствие",
+                    source: "Тестовые данные", ratings: ["energy": 4, "stress": 2, "sleepiness": 2]))
+            }
+            if HealthOSLogic.events(shared.events, on: .now, kind: .meal).isEmpty {
+                _ = shared.log(HealthEvent(kind: .meal, date: .now.addingTimeInterval(-1800), title: "Пример · приём пищи", source: "Тестовые данные"))
+            }
+            let now = Date.now, today = Calendar.current.startOfDay(for: now)
+            let empty = CardiacSeries([], from: today, through: now)
+            try? WidgetStorage.write(HealthWidgetSnapshot(day: today, pulse: empty, hrv: empty,
+                nutrition: [.energy: 1710, .protein: 94, .fat: 56, .carbs: 211, .fiber: 23]), file: HealthWidgetSnapshot.file)
+            try? WidgetStorage.write(WidgetTargets(nutrition: NutritionGoals(amounts: [.fiber: 30, .protein: 120]), sleepMinutes: 480), file: WidgetTargets.file)
             WidgetStorage.preferences.set("red", forKey: RitmAccent.widgetKey)
         }
         #endif
@@ -77,9 +99,10 @@ import SwiftUI
 struct HealthOSUITestDisplay: ViewModifier {
     func body(content: Content) -> some View {
         #if DEBUG && targetEnvironment(simulator)
-        if ProcessInfo.processInfo.arguments.contains("--ritm-ui-large-text") {
-            content.dynamicTypeSize(.accessibility3)
-        } else { content }
+        content
+        .frame(maxWidth: ProcessInfo.processInfo.arguments.contains("--ritm-ui-compact") ? 320 : .infinity)
+        .frame(maxWidth: .infinity)
+        .background(Theme.background)
         #else
         content
         #endif

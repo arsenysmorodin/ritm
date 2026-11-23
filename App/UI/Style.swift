@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct Page<Content: View>: View {
+    var spacing: CGFloat = Theme.Space.section
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -16,12 +17,34 @@ struct Page<Content: View>: View {
     }
 
     private var contentLayout: some View {
-        VStack(alignment: .leading, spacing: Theme.Space.section) { content }
+        VStack(alignment: .leading, spacing: spacing) { content }
             .frame(maxWidth: Theme.contentWidth)
             .padding(.horizontal, Theme.Space.gutter)
             .padding(.top, Theme.Space.md)
             .padding(.bottom, Theme.Space.section)
             .frame(maxWidth: .infinity)
+    }
+}
+
+/// Dashboard surfaces share geometry, while emphasis follows the action hierarchy.
+struct BentoCard<Content: View>: View {
+    enum Emphasis { case standard, raised, accent }
+    var emphasis: Emphasis = .standard
+    @ViewBuilder var content: Content
+    @Environment(\.ritmAccent) private var accent
+
+    var body: some View {
+        content
+            .padding(Theme.Space.lg)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(emphasis == .accent ? Theme.onAccent : Theme.primary)
+            .background(emphasis == .accent ? accent : emphasis == .raised ? Theme.elevated : Theme.surface,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.bento, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.Radius.bento, style: .continuous)
+                    .strokeBorder(emphasis == .accent ? Color.clear : Theme.border.opacity(0.8))
+                    .allowsHitTesting(false)
+            }
     }
 }
 

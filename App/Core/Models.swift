@@ -67,6 +67,8 @@ struct ExercisePlan: Identifiable, Codable, Equatable {
     var rest = 60
     var catalogID: String?
     var isCustom: Bool?
+    // A reusable exercise has its own identity, separate from its place in a routine.
+    var customID: UUID?
     var muscleOverride: MuscleSelection?
     var techniqueNote: String?
     var drops: [DropStagePlan]?
@@ -250,6 +252,29 @@ struct Journal: Codable, Equatable {
     var nutritionGoals: NutritionGoals?
     var sleepGoalMinutes: Int?
     var recoveryCheckIns: [RecoveryCheckIn]?
+    var customExercises: [ExercisePlan]?
+
+    /// Includes exercises created before the personal library existed. Historical
+    /// plans remain untouched; the first successful write retains their definitions.
+    var savedExercises: [ExercisePlan] {
+        let embedded = (activeWorkout?.exercises.map(\.plan) ?? []) +
+            programs.flatMap(\.routines).flatMap(\.exercises) +
+            records.sorted { $0.endedAt > $1.endedAt }.flatMap(\.exercises).map(\.plan)
+        var seen: Set<String> = []
+        return ((customExercises ?? []) + embedded).filter {
+            $0.isUserDefined && !$0.name.trimmed.isEmpty && seen.insert($0.historyKey).inserted
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    mutating func retainCustomExercises() { customExercises = savedExercises }
+
+    mutating func rememberExercise(_ plan: ExercisePlan) {
+        guard plan.isUserDefined, !plan.name.trimmed.isEmpty else { return }
+        var library = customExercises ?? savedExercises
+        library.removeAll { $0.historyKey == plan.historyKey }
+        library.append(plan)
+        customExercises = library
+    }
 
     var sleepGoal: Int {
         guard let sleepGoalMinutes, RecoverySnapshot.sleepGoalRange.contains(sleepGoalMinutes) else {

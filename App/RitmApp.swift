@@ -68,6 +68,7 @@ struct RootView: View {
     @State private var quickEntry: HealthEventKind?
     @State private var showSupplements = false
     @State private var showDayTimeline = false
+    @State private var showExperiments = false
 
     private enum Tab: Hashable { case today, health, dynamics, training }
     private enum TrainingDestination: Hashable { case programs, history }
@@ -109,6 +110,12 @@ struct RootView: View {
             NavigationStack {
                 DayTimelineView(store: daily, journal: store)
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Готово") { showDayTimeline = false } } }
+            }
+        }
+        .sheet(isPresented: $showExperiments) {
+            NavigationStack {
+                ExperimentsView(store: daily)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Готово") { showExperiments = false } } }
             }
         }
         .sheet(isPresented: $showBackup) {
@@ -183,12 +190,20 @@ struct RootView: View {
         }
         .onOpenURL { url in
             guard url.scheme == "ritm" else { return }
-            if ["water", "caffeine", "supplements", "timeline"].contains(url.host ?? "") {
+            if ["water", "caffeine", "supplements", "timeline", "check-in", "meal", "experiments"].contains(url.host ?? "") {
                 showAppearance = false; showWorkout = false; tab = .today
                 if url.host == "water" { quickEntry = .water }
                 if url.host == "caffeine" { quickEntry = .caffeine }
                 if url.host == "supplements" { showSupplements = true }
                 if url.host == "timeline" { showDayTimeline = true }
+                if url.host == "check-in" { quickEntry = .checkIn }
+                if url.host == "meal" { quickEntry = .meal }
+                if url.host == "experiments" { showExperiments = true }
+            }
+            if let metric = ["daylight": HealthMeasure.daylightMinutes, "fiber": .fiber, "protein": .protein][url.host ?? ""] {
+                showAppearance = false; showWorkout = false
+                historyRecord = nil; historyProgress = nil
+                tab = .dynamics; metricPath = [metric]
             }
             if url.host == "history" {
                 showAppearance = false
@@ -230,6 +245,7 @@ struct RootView: View {
             if enabled { Task { await healthOSBridge.refresh(store, daily: daily, force: true) } }
         }
         .environment(daily)
+        .environment(store)
         .environment(healthOSBridge)
         .task(id: store.journal.healthEnabled ? store.journal.activeWorkout?.id : nil) {
             guard let draft = store.journal.activeWorkout, store.journal.healthEnabled else { return }

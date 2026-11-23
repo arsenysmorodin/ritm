@@ -177,6 +177,14 @@ private struct RestTimerActivity: Widget {
         SupplementsWidget()
         CaffeineWidget()
         DayTimelineWidget()
+        DailyResourceWidget()
+        DaylightWidget()
+        FiberWidget()
+        ProteinWidget()
+        WaterWeekWidget()
+        ExperimentWidget()
+        SleepGoalWidget()
+        LastMealWidget()
         RestTimerActivity()
     }
 }

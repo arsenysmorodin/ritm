@@ -33,11 +33,13 @@ struct WaterInstrument: View {
     private var water: Double { store.total(.water) }
 
     var body: some View {
-        Panel {
+        BentoCard(emphasis: .raised) {
             VStack(alignment: .leading, spacing: 18) {
-                HStack {
-                    Label("Вода сегодня", systemImage: "drop.fill").font(.headline)
-                    Spacer()
+                HStack(alignment: .top) {
+                    Label("Вода", systemImage: "drop.fill").font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 10)
                     Button { settings = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44) }
                         .accessibilityLabel("Цель и порции воды")
                 }

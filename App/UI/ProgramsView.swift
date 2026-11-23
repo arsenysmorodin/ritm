@@ -366,6 +366,7 @@ private struct ExerciseBlockEditor: View {
 
 struct ExerciseEditor: View {
     @Environment(\.ritmAccent) private var accent
+    @Environment(JournalStore.self) private var store
     @State private var draft: ExercisePlan
     @State private var weight: String
     @State private var target: String
@@ -377,9 +378,10 @@ struct ExerciseEditor: View {
     @State private var showCatalog = false
     @Environment(\.dismiss) private var dismiss
     private let fixedSets: Bool
+    private let allowsLibrary: Bool
     let save: (ExercisePlan) -> Void
 
-    init(initial: ExercisePlan, fixedSets: Bool = false, save: @escaping (ExercisePlan) -> Void) {
+    init(initial: ExercisePlan, fixedSets: Bool = false, allowsLibrary: Bool = true, save: @escaping (ExercisePlan) -> Void) {
         var draft = initial
         if initial.name.isEmpty { draft.isCustom = true }
         _draft = State(initialValue: draft)
@@ -391,6 +393,7 @@ struct ExerciseEditor: View {
         _upperReps = State(initialValue: initial.progression.map { String($0.upperReps) } ?? "")
         _increment = State(initialValue: initial.progression?.weightIncrement.map(Format.weight) ?? "")
         self.fixedSets = fixedSets
+        self.allowsLibrary = allowsLibrary
         self.save = save
     }
 
@@ -399,7 +402,10 @@ struct ExerciseEditor: View {
             Form {
                 Section("Упражнение") {
                     TextField("Например, приседания", text: $draft.name).editAutocorrection()
-                    Button("Выбрать из каталога", systemImage: "figure.strengthtraining.traditional") { showCatalog = true }
+                        .accessibilityIdentifier("exercise.name")
+                    if allowsLibrary {
+                        Button("Выбрать из каталога", systemImage: "figure.strengthtraining.traditional") { showCatalog = true }
+                    }
                     ExerciseReferenceLinks(
                         plan: draft,
                         selection: Binding(get: { draft.muscles }, set: { draft.muscleOverride = $0 })
@@ -409,13 +415,16 @@ struct ExerciseEditor: View {
                     }
                 }
                 if draft.isCustom == true {
-                    Section("Техника") {
+                    Section {
                         TextField("Ваша заметка о движении", text: Binding(
                             get: { draft.techniqueNote ?? "" },
                             set: { draft.techniqueNote = $0 }
                         ), axis: .vertical).lineLimit(2...5).editAutocorrection()
+                    } header: { Text("Техника") } footer: {
+                        Text("Упражнение сохранится в разделе «Мои упражнения». Выбранные мышцы и выполненные подходы учитываются в прогрессе и нагрузке.")
                     }
                 }
+                if let error = store.error { Section { StatusMessage(text: error) } }
                 Section("Нагрузка") {
                     if fixedSets {
                         Text(Format.sets(draft.sets) + " по раундам")
@@ -454,14 +463,27 @@ struct ExerciseEditor: View {
             .navigationTitle("Упражнение")
             .sheet(isPresented: $showCatalog) {
                 NavigationStack {
-                    ExerciseLibraryView { entry in
+                    ExerciseLibraryView(select: { entry in
                         draft.catalogID = entry.id
                         draft.isCustom = false
+                        draft.customID = nil
                         draft.muscleOverride = nil
+                        draft.techniqueNote = nil
                         draft.name = entry.name
                         draft.unit = entry.unit
                         target = String(entry.target)
-                    }
+                    }, selectCustom: { selected in
+                        var placement = selected.placedInRoutine(id: draft.id)
+                        if fixedSets { placement.sets = draft.sets; placement.rest = draft.rest }
+                        draft = placement
+                        target = String(placement.target)
+                        weight = placement.weight > 0 ? Format.weight(placement.weight) : ""
+                        drops = (placement.drops ?? []).map(DropInput.init)
+                        progressionEnabled = placement.progression != nil
+                        lowerReps = placement.progression.map { String($0.lowerReps) } ?? ""
+                        upperReps = placement.progression.map { String($0.upperReps) } ?? ""
+                        increment = placement.progression?.weightIncrement.map(Format.weight) ?? ""
+                    })
                 }
             }
             .toolbar {
@@ -475,6 +497,7 @@ struct ExerciseEditor: View {
                         draft.drops = validatedDrops.isEmpty ? nil : validatedDrops
                         draft.progression = progressionEnabled && draft.unit == .repetitions ? progression : nil
                         draft.techniqueNote = draft.techniqueNote?.trimmed
+                        if draft.isUserDefined && !store.saveExercise(draft) { return }
                         save(draft)
                         dismiss()
                     }

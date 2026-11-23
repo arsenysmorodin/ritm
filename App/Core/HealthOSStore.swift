@@ -12,7 +12,9 @@ import WidgetKit
     var isImporting = false
     var importMessage: String?
     @ObservationIgnored var onChange: (() -> Void)?
-    static let widgetKinds = ["RitmWater", "RitmSupplements", "RitmCaffeine", "RitmDayTimeline"]
+    static let widgetKinds = ["RitmWater", "RitmSupplements", "RitmCaffeine", "RitmDayTimeline",
+        "RitmDailyResource", "RitmDaylight", "RitmFiber", "RitmProtein", "RitmWaterWeek",
+        "RitmExperiment", "RitmSleepGoal", "RitmLastMeal"]
 
     init(url: URL? = nil) {
         do { database = try HealthDatabase(url: try url ?? HealthDatabase.sharedURL()) }

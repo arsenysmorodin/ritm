@@ -2,7 +2,11 @@ import SwiftUI
 
 struct ExerciseLibraryView: View {
     var select: ((ExercisePreset) -> Void)? = nil
+    var selectCustom: ((ExercisePlan) -> Void)? = nil
+    @Environment(JournalStore.self) private var store
     @State private var search = ""
+    @State private var creating = false
+    @State private var pendingSelection: ExercisePlan?
     @State private var equipment: Equipment?
     @State private var muscle: Muscle?
     @Environment(\.dismiss) private var dismiss
@@ -16,9 +20,20 @@ struct ExerciseLibraryView: View {
         }
     }
 
+    private var personal: [ExercisePlan] {
+        let query = ExerciseCatalog.normalize(search)
+        return store.journal.savedExercises.filter { plan in
+            equipment == nil &&
+            (muscle.map { plan.muscles.primary.contains($0) || plan.muscles.secondary.contains($0) } ?? true) &&
+            (query.isEmpty || ExerciseCatalog.normalize(plan.name).contains(query))
+        }
+    }
+
     var body: some View {
         List {
             Section {
+                Button("Создать своё упражнение", systemImage: "plus") { creating = true }
+                    .frame(minHeight: Theme.touch).accessibilityIdentifier("exercise.create")
                 Picker("Инвентарь", selection: $equipment) {
                     Text("Любой").tag(nil as Equipment?)
                     ForEach(Equipment.allCases) { Text($0.title).tag(Optional($0)) }
@@ -28,7 +43,25 @@ struct ExerciseLibraryView: View {
                     ForEach(Muscle.allCases) { Text($0.title).tag(Optional($0)) }
                 }
             }
-            if results.isEmpty {
+            if !personal.isEmpty {
+                Section("Мои упражнения · \(personal.count)") {
+                    ForEach(personal, id: \.historyKey) { plan in
+                        NavigationLink {
+                            ExercisePlanDetailView(plan: plan, select: selectCustom.map { action in
+                                { action(plan); dismiss() }
+                            })
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(plan.name).font(.headline)
+                                Text(plan.muscles.isEmpty ? "Группы мышц не указаны" :
+                                    (plan.muscles.primary + plan.muscles.secondary).map(\.title).joined(separator: ", "))
+                                    .font(.subheadline).foregroundStyle(Theme.secondary)
+                            }.frame(minHeight: Theme.touch, alignment: .leading)
+                        }.accessibilityIdentifier("exercise.saved.\(plan.name)")
+                    }
+                }
+            }
+            if results.isEmpty && personal.isEmpty {
                 Section {
                     ContentUnavailableView {
                         Label("Упражнения не найдены", systemImage: "magnifyingglass")
@@ -43,7 +76,8 @@ struct ExerciseLibraryView: View {
                         .frame(minHeight: Theme.touch)
                     }
                 }
-            } else {
+            }
+            if !results.isEmpty {
                 Section(Format.exercises(results.count)) {
                     ForEach(results) { entry in
                         NavigationLink {
@@ -64,6 +98,17 @@ struct ExerciseLibraryView: View {
         .searchable(text: $search, prompt: "Название упражнения")
         .navigationTitle("Каталог")
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } }
+        .sheet(isPresented: $creating, onDismiss: {
+            if let plan = pendingSelection {
+                pendingSelection = nil
+                selectCustom?(plan)
+                dismiss()
+            }
+        }) {
+            ExerciseEditor(initial: ExercisePlan(name: ""), allowsLibrary: false) { plan in
+                if selectCustom != nil { pendingSelection = plan }
+            }
+        }
     }
 }
 
@@ -79,10 +124,11 @@ struct ExerciseDetailView: View {
 
 struct ExercisePlanDetailView: View {
     let plan: ExercisePlan
+    var select: (() -> Void)? = nil
 
     var body: some View {
         ExerciseGuide(name: plan.name, preset: ExerciseCatalog.find(plan),
-                      muscles: plan.muscles, note: plan.techniqueNote)
+                      muscles: plan.muscles, note: plan.techniqueNote, select: select)
     }
 }
 
