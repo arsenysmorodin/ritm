@@ -55,7 +55,9 @@ import SwiftUI
         guard let root else { return HealthOSStore() }
         let store = HealthOSStore(url: root.appending(path: "health.sqlite"))
         #if DEBUG && targetEnvironment(simulator)
-        if ProcessInfo.processInfo.arguments.contains("--ritm-ui-fixtures"), store.archive.days.isEmpty {
+        if ProcessInfo.processInfo.arguments.contains("--ritm-ui-reversal"), store.archive.days.isEmpty {
+            _ = store.restore(reversalFixtures())
+        } else if ProcessInfo.processInfo.arguments.contains("--ritm-ui-fixtures"), store.archive.days.isEmpty {
             _ = store.restore(fixtures())
         }
         #endif
@@ -63,6 +65,19 @@ import SwiftUI
     }
 
     #if DEBUG && targetEnvironment(simulator)
+    private static func reversalFixtures() -> HealthOSArchive {
+        var archive = fixtures()
+        archive.events.removeAll { $0.kind == .meal }
+        for index in archive.days.indices {
+            let isB = index % 2 == 1
+            let start = Calendar.current.date(byAdding: .hour, value: -1, to: archive.days[index].date)!
+            archive.days[index].sleepStart = start
+            archive.days[index].values[.hrv] = isB ? (index < 63 ? 66 : 50) : 54
+            archive.events.append(HealthEvent(kind: .meal, date: start.addingTimeInterval(isB ? -2 * 3600 : -5 * 3600),
+                title: "Пример · ужин", source: "Тестовые данные"))
+        }
+        return archive
+    }
     private static func fixtures() -> HealthOSArchive {
         let now = Date.now, calendar = Calendar.current, today = calendar.startOfDay(for: now)
         var archive = HealthOSArchive()

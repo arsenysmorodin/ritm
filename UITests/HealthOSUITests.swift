@@ -4,7 +4,7 @@ final class HealthOSUITests: XCTestCase {
     private var app: XCUIApplication!
     override func setUp() { super.setUp(); continueAfterFailure = false }
 
-    private func launch(fixtures: Bool = false, dark: Bool = false, large: Bool = false, compact: Bool = false) {
+    private func launch(fixtures: Bool = false, dark: Bool = false, large: Bool = false, compact: Bool = false, reversal: Bool = false) {
         app = XCUIApplication()
         app.launchArguments = ["--ritm-ui-testing", "--ritm-ui-session", UUID().uuidString, "--ritm-ui-accent", "lime", "-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU"]
         app.launchArguments += ["-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXL" : "UICTContentSizeCategoryL"]
@@ -12,6 +12,7 @@ final class HealthOSUITests: XCTestCase {
         if dark { app.launchArguments.append("--ritm-ui-dark") }
         if large { app.launchArguments.append("--ritm-ui-large-text") }
         if compact { app.launchArguments.append("--ritm-ui-compact") }
+        if reversal { app.launchArguments.append("--ritm-ui-reversal") }
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Сегодня"].waitForExistence(timeout: 20))
     }
@@ -109,7 +110,7 @@ final class HealthOSUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let insights = app.buttons["health.insights"]
         reveal(insights); insights.tap()
-        XCTAssertTrue(app.staticTexts["Сравнить периоды"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.segmentedControls["insights.period"].waitForExistence(timeout: 5))
         capture("insights-dark")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let experiments = app.buttons["health.experiments"]
@@ -130,6 +131,69 @@ final class HealthOSUITests: XCTestCase {
         alignWaterForAudit()
         capture("water-accessibility3")
         try audit()
+    }
+
+    func testDynamicsOverviewPeriodChartAndNumericPulseHistory() {
+        launch(fixtures: true, dark: true)
+        app.tabBars.buttons["Динамика"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["comparison.delta"].firstMatch.waitForExistence(timeout: 8))
+        capture("dynamics-dark-overview")
+        app.segmentedControls["insights.period"].buttons["7 дней"].tap()
+        let chart = app.descendants(matching: .any)["insights.chart"].firstMatch
+        reveal(chart)
+        let chartValue = app.descendants(matching: .any)["insights.chartValue"].firstMatch
+        let before = chartValue.label
+        chart.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.5)).tap()
+        let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label != %@", before), object: chartValue)
+        XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed)
+        capture("dynamics-chart-selection")
+        app.buttons["insights.all"].tap()
+        let pulse = app.buttons["insights.list.restingPulse"]
+        reveal(pulse); pulse.tap()
+        XCTAssertTrue(app.buttons["insights.metric"].label.contains("Пульс в покое"))
+        XCTAssertFalse(chart.exists)
+        let history = app.buttons["insights.history"]
+        reveal(history); history.tap()
+        let records = app.buttons["insights.records"]
+        reveal(records); records.tap()
+        capture("dynamics-exact-records")
+    }
+
+    func testDynamicsReversedAssociationAndCalculationDetails() {
+        launch(fixtures: true, dark: true, reversal: true)
+        app.tabBars.buttons["Динамика"].tap()
+        let connections = app.buttons["insights.connections"]
+        reveal(connections); connections.tap()
+        app.buttons["connections.exposure"].tap()
+        app.buttons["Еда менее чем за 3 часа до сна"].tap()
+        app.buttons["connections.outcome"].tap()
+        app.buttons["Ночная ВСР"].tap()
+        XCTAssertTrue(app.staticTexts["Результат не повторился"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "−4 мс")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["Перевыборка календарными неделями, 800 повторов."].exists)
+        capture("dynamics-reversed-association")
+        app.buttons["comparison.associationInfo"].tap()
+        XCTAssertTrue(app.staticTexts["Источник"].waitForExistence(timeout: 5))
+        capture("dynamics-method-details")
+    }
+
+    func testDynamicsCompactLightAndEmptyStates() throws {
+        launch(compact: true)
+        app.tabBars.buttons["Динамика"].tap()
+        XCTAssertTrue(app.staticTexts["Нужно больше данных"].waitForExistence(timeout: 5))
+        capture("dynamics-320-empty-light")
+        try app.performAccessibilityAudit(for: [.elementDetection, .sufficientElementDescription])
+    }
+
+    func testDynamicsLargeTextAndWeeklyOverview() throws {
+        launch(fixtures: true, large: true)
+        app.tabBars.buttons["Динамика"].tap()
+        capture("dynamics-accessibility3-light")
+        try app.performAccessibilityAudit(for: [.elementDetection, .sufficientElementDescription])
+        let week = app.buttons["insights.week"]
+        reveal(week, attempts: 14); week.tap()
+        XCTAssertTrue(app.navigationBars["Итоги недели"].waitForExistence(timeout: 5))
+        capture("dynamics-week-accessibility3")
     }
 
     func testBentoAt320PointsAndResourceEntry() throws {

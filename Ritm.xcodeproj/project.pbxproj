@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E20000000000000000000002 /* InsightReadout.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20000000000000000000001; };
 		D80000000000000000000011 /* ActivityWidgetReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80000000000000000000001; };
 		D80000000000000000000012 /* WidgetDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80000000000000000000002; };
 		D80000000000000000000013 /* MoreHealthWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80000000000000000000003; };
@@ -82,6 +83,7 @@ E10000000000000000000005 = {isa = PBXBuildFile; fileRef = E100000000000000000000
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		E20000000000000000000001 /* InsightReadout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightReadout.swift; sourceTree = "<group>"; };
 		D80000000000000000000001 /* ActivityWidgetReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityWidgetReader.swift; sourceTree = "<group>"; };
 		D80000000000000000000002 /* WidgetDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDesign.swift; sourceTree = "<group>"; };
 		D80000000000000000000003 /* MoreHealthWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreHealthWidgets.swift; sourceTree = "<group>"; };
@@ -174,6 +176,7 @@ E10000000000000000000007 = {isa = PBXFrameworksBuildPhase; buildActionMask = 214
 			children = (
 				D90000000000000000000005,
 				D90000000000000000000004,
+				E20000000000000000000001,
 				D90000000000000000000003,
 				D90000000000000000000002,
 				D90000000000000000000001,
@@ -384,6 +387,7 @@ E10000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147
 				DA0000000000000000000006,
 				DA0000000000000000000005,
 				DA0000000000000000000004,
+				E20000000000000000000002,
 				DA0000000000000000000003,
 				DA0000000000000000000002,
 				DA0000000000000000000001,

@@ -100,7 +100,7 @@ struct ExperimentDetail: View {
                 Panel {
                     VStack(alignment: .leading, spacing: 14) {
                         SectionHeading(title: "Наблюдаемый результат")
-                        ComparisonPanel(result: report.comparison, metric: plan.outcome, labelA: "A", labelB: "B")
+                        ComparisonPanel(result: report.comparison, metric: plan.outcome, labelA: "A", labelB: "B", kind: .experiment)
                         Text("Соблюдение: \(report.adherence.map { HealthEvent.number($0) + "%" } ?? "—"). Отметок \(report.recordedAdherence) из \(report.expectedDays) подходящих дней. Нет исхода: \(report.missingOutcomes). Дней адаптации: \(report.adaptationDays).")
                             .font(.subheadline).foregroundStyle(Theme.secondary)
                         if let adherence = report.adherence, adherence < Double(plan.minimumAdherence) {
