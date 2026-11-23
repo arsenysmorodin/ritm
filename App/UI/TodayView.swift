@@ -3,7 +3,7 @@ import SwiftUI
 import WidgetKit
 #endif
 
-struct TodayView: View {
+struct TrainingHomeView: View {
     @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     var start: (Routine?) -> Void
@@ -18,13 +18,21 @@ struct TodayView: View {
         let journal = store.journal
         let suggestion = journal.suggestion(on: now)
         Page {
-            PageHeader(title: "Сегодня", caption: Format.date(now)) {
+            PageHeader(title: "Тренировки", caption: "Движение как часть вашего дня") {
                 Button(action: openAppearance) { IconBadge(icon: "gearshape") }
                     .buttonStyle(PressStyle())
-                    .accessibilityLabel("Оформление")
+                    .accessibilityLabel("Настройки")
             }
 
             workoutPanel(journal.activeWorkout, suggestion, program: journal.activeProgram?.name)
+            let navigationLayout = textSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+            navigationLayout {
+                ActionButton(title: "Программы", icon: "square.stack", solid: false, action: programs)
+                    .accessibilityIdentifier("training.programs")
+                ActionButton(title: "История", icon: "clock.arrow.circlepath", solid: false, action: openHistory)
+                    .accessibilityIdentifier("training.history")
+            }
             if journal.activeWorkout == nil, suggestion != nil {
                 Button {
                     start(nil)
@@ -144,10 +152,13 @@ struct TodayView: View {
 
 struct AppearanceSettings: View {
     let store: JournalStore
+    @Environment(HealthOSStore.self) private var daily
+    @Environment(HealthOSBridge.self) private var bridge
     @Environment(\.dismiss) private var dismiss
     @AppStorage(RitmAppearance.key) private var appearance = RitmAppearance.system
     @AppStorage(RitmAccent.appKey) private var appAccent = RitmAccent.lime
     @AppStorage(RitmAccent.widgetKey, store: WidgetStorage.preferences) private var widgetAccent = RitmAccent.lime
+    @State private var showWaterSettings = false
 
     var body: some View {
         NavigationStack {
@@ -168,11 +179,29 @@ struct AppearanceSettings: View {
                 }
                 Section("Данные") {
                     NavigationLink("Резервная копия") { BackupView(store: store) }
+                    Button("Вода и напоминания") { showWaterSettings = true }
+                    if store.journal.healthEnabled {
+                        Button(daily.settings.writeIntakeToHealth ? "Обновить доступ к записи воды и кофеина" : "Сохранять воду и кофеин в «Здоровье»") {
+                            Task { await bridge.authorize(store, daily: daily, write: true) }
+                        }.disabled(bridge.busy)
+                        if daily.settings.writeIntakeToHealth {
+                            Button("Остановить запись воды и кофеина") {
+                                var settings = daily.settings; settings.writeIntakeToHealth = false
+                                _ = daily.saveSettings(settings)
+                            }
+                        }
+                        Button("Обновить историю здоровья за год") {
+                            Task { await bridge.refresh(store, daily: daily, force: true, fullHistory: true) }
+                        }.disabled(bridge.busy)
+                    }
+                    if let message = daily.importMessage { Text(message).font(.caption).foregroundStyle(Theme.secondary) }
+                    if let issue = bridge.issue { Text(issue).font(.caption).foregroundStyle(Theme.warning) }
                 }
             }
-            .navigationTitle("Оформление")
+            .navigationTitle("Настройки")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Готово") { dismiss() } } }
         }
+        .sheet(isPresented: $showWaterSettings) { HealthOSSettingsView(store: daily) }
         #if os(iOS)
         .onChange(of: widgetAccent) { _, _ in WidgetCenter.shared.reloadAllTimelines() }
         #endif

@@ -36,10 +36,12 @@ struct JournalBackup: Codable {
     var formatVersion = 1
     var createdAt = Date.now
     let journal: Journal
+    var healthOS: HealthOSArchive? = nil
 
     static func decode(_ data: Data) throws -> Self {
         let archive = try JSONDecoder().decode(Self.self, from: data)
         guard archive.formatVersion == 1, archive.journal.version == 1 else { throw CocoaError(.fileReadUnknown) }
+        if let healthOS = archive.healthOS { try healthOS.validate() }
         return archive
     }
 }

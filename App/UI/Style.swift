@@ -37,7 +37,7 @@ struct PageHeader<Trailing: View>: View {
             : AnyLayout(HStackLayout(spacing: Theme.Space.md))
         layout {
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text(title).font(Theme.screenTitle).accessibilityAddTraits(.isHeader)
+                Text(title).font(Theme.screenTitle).fontWidth(.expanded).accessibilityAddTraits(.isHeader)
                 Text(caption).font(.subheadline).foregroundStyle(Theme.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -53,9 +53,9 @@ struct Panel<Content: View>: View {
     var body: some View {
         content.padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.panel))
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: Theme.Radius.panel).strokeBorder(Theme.border).allowsHitTesting(false)
+                RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous).strokeBorder(Theme.border.opacity(0.8)).allowsHitTesting(false)
             }
     }
 }

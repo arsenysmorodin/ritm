@@ -14,6 +14,7 @@ final class RestTimerDelivery {
     private var activityTask: Task<Void, Never>?
     private var notificationTask: Task<Void, Never>?
     var openWorkout = false
+    var openHealthRoute: String?
 
     func sync(_ rest: WorkoutRest?, isForeground: Bool) {
         let previous = current
@@ -114,13 +115,17 @@ final class RestTimerDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        notification.request.identifier.hasPrefix(RestTimerDelivery.notificationPrefix) ? [.banner, .sound] : []
+        notification.request.identifier.hasPrefix(RestTimerDelivery.notificationPrefix) || notification.request.identifier.hasPrefix("ritm.health.") ? [.banner, .sound] : []
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
-              response.notification.request.identifier.hasPrefix(RestTimerDelivery.notificationPrefix) else { return }
-        await MainActor.run { restTimer.openWorkout = true }
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else { return }
+        if response.notification.request.identifier.hasPrefix(RestTimerDelivery.notificationPrefix) {
+            await MainActor.run { restTimer.openWorkout = true }
+        } else if response.notification.request.identifier.hasPrefix("ritm.health."),
+                  let route = response.notification.request.content.userInfo["ritmRoute"] as? String {
+            await MainActor.run { restTimer.openHealthRoute = route }
+        }
     }
 }
 #endif

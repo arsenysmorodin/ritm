@@ -92,8 +92,8 @@ enum Theme {
     }
 
     enum Radius {
-        static let control: CGFloat = 12
-        static let panel: CGFloat = 18
+        static let control: CGFloat = 10
+        static let panel: CGFloat = 16
     }
 
     static let touch: CGFloat = 44
@@ -102,7 +102,7 @@ enum Theme {
 
     static let screenTitle = Font.system(.largeTitle, weight: .bold)
     static let sectionTitle = Font.system(.title3, weight: .semibold)
-    static let metric = Font.system(.largeTitle, weight: .semibold).monospacedDigit()
+    static let metric = Font.system(.largeTitle, design: .monospaced, weight: .medium)
     static let timer = Font.system(.title, design: .monospaced, weight: .semibold)
     static let number = Font.system(.title3, weight: .semibold).monospacedDigit()
 }

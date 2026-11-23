@@ -25,13 +25,13 @@
 
 | Токен | Значение |
 | --- | --- |
-| `screenTitle` | Системный Large Title, Bold |
+| `screenTitle` | Системный Large Title, Bold; заголовок страницы использует системную ширину Expanded |
 | `sectionTitle` | Системный Title 3, Semibold |
-| `metric` | Системный Large Title, Semibold, табличные цифры |
+| `metric` | Системный Large Title, Monospaced, Medium |
 | `timer` | Системный Title, Monospaced, Semibold |
 | `number` | Системный Title 3, Semibold, табличные цифры |
 | `Space.xs…section` | 4, 8, 12, 16, 20, 24 pt |
-| `Radius.control / panel` | 12 / 18 pt |
+| `Radius.control / panel` | 10 / 16 pt, непрерывные системные скругления |
 | `touch / actionHeight` | 44 / 52 pt, высота основных кнопок растёт с текстом |
 | `contentWidth` | 560 pt внутри поля страницы |
 

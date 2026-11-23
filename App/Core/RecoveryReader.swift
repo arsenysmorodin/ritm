@@ -49,8 +49,8 @@ final class RecoveryReader {
         }
     }
 
-    func snapshot(now: Date = .now, calendar: Calendar = .current) async throws -> RecoverySnapshot {
-        let cutoff = calendar.date(byAdding: .day, value: -35, to: calendar.startOfDay(for: now)) ?? now
+    func snapshot(now: Date = .now, calendar: Calendar = .current, historyDays: Int = 35) async throws -> RecoverySnapshot {
+        let cutoff = calendar.date(byAdding: .day, value: -historyDays, to: calendar.startOfDay(for: now)) ?? now
         let window = HKQuery.predicateForSamples(withStart: cutoff, end: now, options: .strictEndDate)
         async let resting = quantities(for: [.restingPulse], window: window)
         let sleep = try await HKSampleQueryDescriptor(

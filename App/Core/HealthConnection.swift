@@ -26,7 +26,7 @@ import WidgetKit
     private let store = HKHealthStore()
     private let pulseType = HKQuantityType(.heartRate)
     private var reads: Set<HKObjectType> {
-        Set<HKObjectType>(ActivityWidgetReader.types).union(HealthWidgetReader.types).union(RecoveryReader.types)
+        Set<HKObjectType>(ActivityWidgetReader.types).union(HealthWidgetReader.types).union(RecoveryReader.types).union(HealthOSBridge.readTypes)
     }
     private let workoutType = HKObjectType.workoutType()
     private let widgetReader = HealthWidgetReader()

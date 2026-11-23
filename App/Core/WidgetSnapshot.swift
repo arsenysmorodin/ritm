@@ -51,7 +51,7 @@ struct WidgetSnapshot: Codable, Equatable {
 }
 
 enum WidgetStorage {
-    private static var groupID: String? {
+    static var groupID: String? {
         Bundle.main.object(forInfoDictionaryKey: "RitmWidgetGroup") as? String
     }
 

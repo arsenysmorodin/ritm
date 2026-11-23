@@ -25,8 +25,7 @@ struct WidgetCard<Content: View>: View {
             .foregroundStyle(palette.primary)
             .containerBackground(for: .widget) {
                 ContainerRelativeShape()
-                    .fill(LinearGradient(colors: [palette.elevated, palette.surface],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(palette.surface)
                     .overlay {
                         ContainerRelativeShape().strokeBorder(palette.secondary.opacity(0.18), lineWidth: 1)
                     }
@@ -114,7 +113,7 @@ struct WidgetProgressStrip: View {
                 }
             }
         }
-        .frame(height: 4)
+        .frame(height: 6)
         .accessibilityHidden(true)
     }
 }

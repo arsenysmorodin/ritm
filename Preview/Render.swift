@@ -20,7 +20,7 @@ import SwiftUI
 
         let layout = HStack(spacing: 20) {
             preview(tab: "Сегодня") {
-                TodayView(store: store, start: { _ in }, programs: {}, openHistory: {}, openRecord: { _ in }, now: now)
+                TrainingHomeView(store: store, start: { _ in }, programs: {}, openHistory: {}, openRecord: { _ in }, now: now)
             }
             preview(tab: "Программы") {
                 ProgramsView(store: store, start: { _ in })

@@ -4,6 +4,8 @@ struct HealthView: View {
     @Environment(\.ritmAccent) private var accent
     let store: JournalStore
     let health: HealthConnection
+    @Environment(HealthOSStore.self) private var daily
+    @Environment(HealthOSBridge.self) private var healthOSBridge
     @Binding var path: [RecoverySection]
     @Environment(\.dynamicTypeSize) private var textSize
     @State private var showPermissions = false
@@ -20,7 +22,8 @@ struct HealthView: View {
 
     private var content: some View {
         Page {
-            PageHeader(title: "Здоровье", caption: "Активность и показатели") { EmptyView() }
+            PageHeader(title: "Здоровье", caption: "Показатели, сон и восстановление") { EmptyView() }
+            if let issue = healthOSBridge.issue { StatusMessage(text: issue) }
             NavigationLink(value: RecoverySection.overview) {
                 Panel {
                     HStack(spacing: Theme.Space.md) {
@@ -71,11 +74,11 @@ struct HealthView: View {
                                 showPermissions = true
                             }
                             if health.additionalPermissionsPending {
-                                ActionButton(title: "Разрешить сон и показатели", icon: "heart.text.square", solid: false) {
+                                ActionButton(title: "Обновить доступ к показателям", icon: "heart.text.square", solid: false) {
                                     Task { await health.connect(store) }
                                 }.disabled(health.isBusy)
                             }
-                            Button("Отключить обмен") { health.disconnect(store) }
+                            Button("Отключить обмен") { health.disconnect(store); healthOSBridge.disconnect(daily) }
                                 .font(.subheadline).frame(minHeight: 44).disabled(health.isBusy)
                         } else {
                             ActionButton(title: "Подключить «Здоровье»", icon: "heart") {
@@ -100,7 +103,10 @@ struct HealthView: View {
             Text("Программы и журнал хранятся на этом устройстве.").font(.footnote).foregroundStyle(Theme.secondary)
         }
         .task { await health.refresh(store) }
-        .refreshable { await health.refresh(store) }
+        .refreshable {
+            await health.refresh(store)
+            await healthOSBridge.refresh(store, daily: daily, force: true)
+        }
         .alert("Разрешения «Здоровья»", isPresented: $showPermissions) {
             Button("Понятно", role: .cancel) {}
         } message: {

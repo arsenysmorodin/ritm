@@ -63,6 +63,22 @@
 		C20000000000000000000020 = {isa = PBXBuildFile; fileRef = C20000000000000000000001; };
 		C20000000000000000000021 = {isa = PBXBuildFile; fileRef = B00000000000000000000008; };
 		C20000000000000000000010 = {isa = PBXBuildFile; fileRef = C20000000000000000000004; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, );}; };
+		DA0000000000000000000001 /* HealthOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000001; };
+		DB0000000000000000000001 /* HealthOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000001; };
+		DA0000000000000000000002 /* HealthDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000002; };
+		DB0000000000000000000002 /* HealthDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000002; };
+		DA0000000000000000000003 /* HealthOSStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000003; };
+		DA0000000000000000000004 /* HealthAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000004; };
+		DA0000000000000000000005 /* HealthOSBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000005; };
+		DA0000000000000000000006 /* HealthOSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000006; };
+		DA0000000000000000000007 /* HealthOSEditors.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000007; };
+		DA0000000000000000000008 /* HealthInsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000008; };
+		DA0000000000000000000009 /* HealthExperimentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90000000000000000000009; };
+		DA000000000000000000000A /* HealthOSNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9000000000000000000000A; };
+		DB000000000000000000000B /* HealthOSWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9000000000000000000000B; };
+		DA000000000000000000000C = {isa = PBXBuildFile; fileRef = D9000000000000000000000C; };
+E10000000000000000000005 = {isa = PBXBuildFile; fileRef = E10000000000000000000004; };
+		DA000000000000000000000D = {isa = PBXBuildFile; fileRef = D9000000000000000000000D; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -122,6 +138,21 @@
 		C20000000000000000000033 = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Health-Widgets.entitlements; sourceTree = "<group>"; };
 		C20000000000000000000034 = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 		C20000000000000000000004 = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = RitmWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D90000000000000000000001 /* HealthOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthOS.swift; sourceTree = "<group>"; };
+		D90000000000000000000002 /* HealthDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthDatabase.swift; sourceTree = "<group>"; };
+		D90000000000000000000003 /* HealthOSStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthOSStore.swift; sourceTree = "<group>"; };
+		D90000000000000000000004 /* HealthAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAnalytics.swift; sourceTree = "<group>"; };
+		D90000000000000000000005 /* HealthOSBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthOSBridge.swift; sourceTree = "<group>"; };
+		D90000000000000000000006 /* HealthOSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthOSView.swift; sourceTree = "<group>"; };
+		D90000000000000000000007 /* HealthOSEditors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthOSEditors.swift; sourceTree = "<group>"; };
+		D90000000000000000000008 /* HealthInsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthInsightsView.swift; sourceTree = "<group>"; };
+		D90000000000000000000009 /* HealthExperimentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthExperimentsView.swift; sourceTree = "<group>"; };
+		D9000000000000000000000A /* HealthOSNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthOSNotifications.swift; sourceTree = "<group>"; };
+		D9000000000000000000000B /* HealthOSWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthOSWidgets.swift; sourceTree = "<group>"; };
+		D9000000000000000000000C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthOSUITestSupport.swift; sourceTree = "<group>"; };
+E10000000000000000000002 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RitmHealthUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+E10000000000000000000004 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthOSUITests.swift; sourceTree = "<group>"; };
+		D9000000000000000000000D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayDashboardView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,12 +165,18 @@
 		};
 		C10000000000000000000006 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		C20000000000000000000006 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+E10000000000000000000007 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		DA7A0000000000000000000C /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				D90000000000000000000005,
+				D90000000000000000000004,
+				D90000000000000000000003,
+				D90000000000000000000002,
+				D90000000000000000000001,
 				B00000000000000000000008 /* WidgetSnapshot.swift */,
 				D60000000000000000000001 /* HealthWidgetSnapshot.swift */,
 				D60000000000000000000002 /* HealthWidgetReader.swift */,
@@ -163,6 +200,11 @@
 		DA7A0000000000000000000D /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				D9000000000000000000000D,
+				D90000000000000000000009,
+				D90000000000000000000008,
+				D90000000000000000000007,
+				D90000000000000000000006,
 				B00000000000000000000006 /* PulsePanel.swift */,
 				B00000000000000000000004 /* ProgressView.swift */,
 				B00000000000000000000003 /* ExerciseLibraryView.swift */,
@@ -183,6 +225,8 @@
 		DA7A0000000000000000000E /* App */ = {
 			isa = PBXGroup;
 			children = (
+				D9000000000000000000000C,
+				D9000000000000000000000A,
 				DA7A00000000000000000001 /* RitmApp.swift */,
 				D50000000000000000000002 /* RestTimerDelivery.swift */,
 				DA7A0000000000000000000C /* Core */,
@@ -216,6 +260,7 @@
 		DA7A00000000000000000015 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				E10000000000000000000002,
 				C20000000000000000000004 /* RitmWidgets.appex */,
 				C10000000000000000000004 /* RitmWatch.app */,
 				DA7A00000000000000000014 /* Ritm.app */,
@@ -226,6 +271,7 @@
 		DA7A00000000000000000016 /* Ritm */ = {
 			isa = PBXGroup;
 			children = (
+				E10000000000000000000003,
 				C20000000000000000000003 /* Widgets */,
 				C10000000000000000000003 /* Watch */,
 				DA7A0000000000000000000E /* App */,
@@ -236,7 +282,9 @@
 			sourceTree = "<group>";
 		};
 		C10000000000000000000003 = {isa = PBXGroup; children = (C10000000000000000000001, C10000000000000000000002,); path = Watch; sourceTree = "<group>"; };
-		C20000000000000000000003 = {isa = PBXGroup; children = (C20000000000000000000001, D60000000000000000000003, D70000000000000000000005, D80000000000000000000002, D80000000000000000000003,); path = Widgets; sourceTree = "<group>"; };
+		C20000000000000000000003 = {isa = PBXGroup; children = (
+				D9000000000000000000000B,C20000000000000000000001, D60000000000000000000003, D70000000000000000000005, D80000000000000000000002, D80000000000000000000003,); path = Widgets; sourceTree = "<group>"; };
+E10000000000000000000003 = {isa = PBXGroup; children = (E10000000000000000000004,); path = UITests; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -263,6 +311,7 @@
 		};
 		C1000000000000000000000D = {isa = PBXNativeTarget; buildConfigurationList = C1000000000000000000000C; buildPhases = (C10000000000000000000005, C10000000000000000000006, C10000000000000000000008,); buildRules = (); dependencies = (); name = RitmWatch; productName = RitmWatch; productReference = C10000000000000000000004; productType = "com.apple.product-type.application"; };
 		C2000000000000000000000D = {isa = PBXNativeTarget; buildConfigurationList = C2000000000000000000000C; buildPhases = (C20000000000000000000005, C20000000000000000000006, C20000000000000000000008,); buildRules = (); dependencies = (); name = RitmWidgets; productName = RitmWidgets; productReference = C20000000000000000000004; productType = "com.apple.product-type.app-extension"; };
+E10000000000000000000001 = {isa = PBXNativeTarget; buildConfigurationList = E10000000000000000000009; buildPhases = (E10000000000000000000006, E10000000000000000000007, E10000000000000000000008,); buildRules = (); dependencies = (E1000000000000000000000D,); name = RitmHealthUITests; productName = RitmHealthUITests; productReference = E10000000000000000000002; productType = "com.apple.product-type.bundle.ui-testing"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -298,6 +347,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				E10000000000000000000001,
 				C2000000000000000000000D /* RitmWidgets */,
 				C1000000000000000000000D /* RitmWatch */,
 				DA7A0000000000000000002C /* Ritm */,
@@ -317,6 +367,7 @@
 		};
 		C10000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000007, D40000000000000000000022,); runOnlyForDeploymentPostprocessing = 0; };
 		C20000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (D40000000000000000000023,); runOnlyForDeploymentPostprocessing = 0; };
+E10000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -324,6 +375,18 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DA000000000000000000000D,
+				DA000000000000000000000C,
+				DA000000000000000000000A,
+				DA0000000000000000000009,
+				DA0000000000000000000008,
+				DA0000000000000000000007,
+				DA0000000000000000000006,
+				DA0000000000000000000005,
+				DA0000000000000000000004,
+				DA0000000000000000000003,
+				DA0000000000000000000002,
+				DA0000000000000000000001,
 				D40000000000000000000011 /* RitmTheme.swift in Sources */,
 				D50000000000000000000011 /* RestActivityAttributes.swift in Sources */,
 				D50000000000000000000013 /* RestTimerDelivery.swift in Sources */,
@@ -361,17 +424,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C10000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000020, C10000000000000000000021, C10000000000000000000022, C10000000000000000000023, D40000000000000000000012,); runOnlyForDeploymentPostprocessing = 0; };
-		C20000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C20000000000000000000020, C20000000000000000000021, D40000000000000000000013, D50000000000000000000012, D60000000000000000000012, D60000000000000000000014, D70000000000000000000012, D70000000000000000000015, D70000000000000000000017, D80000000000000000000012, D80000000000000000000013,); runOnlyForDeploymentPostprocessing = 0; };
+		C20000000000000000000005 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (DB000000000000000000000B, DB0000000000000000000002, DB0000000000000000000001, C20000000000000000000020, C20000000000000000000021, D40000000000000000000013, D50000000000000000000012, D60000000000000000000012, D60000000000000000000014, D70000000000000000000012, D70000000000000000000015, D70000000000000000000017, D80000000000000000000012, D80000000000000000000013,); runOnlyForDeploymentPostprocessing = 0; };
+E10000000000000000000006 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E10000000000000000000005,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXContainerItemProxy section */
 		C1000000000000000000000E = {isa = PBXContainerItemProxy; containerPortal = DA7A0000000000000000002E; proxyType = 1; remoteGlobalIDString = C1000000000000000000000D; remoteInfo = RitmWatch; };
 		C2000000000000000000000E = {isa = PBXContainerItemProxy; containerPortal = DA7A0000000000000000002E; proxyType = 1; remoteGlobalIDString = C2000000000000000000000D; remoteInfo = RitmWidgets; };
+E1000000000000000000000E = {isa = PBXContainerItemProxy; containerPortal = DA7A0000000000000000002E; proxyType = 1; remoteGlobalIDString = DA7A0000000000000000002C; remoteInfo = Ritm; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXTargetDependency section */
 		C1000000000000000000000F = {isa = PBXTargetDependency; target = C1000000000000000000000D; targetProxy = C1000000000000000000000E; };
 		C2000000000000000000000F = {isa = PBXTargetDependency; target = C2000000000000000000000D; targetProxy = C2000000000000000000000E; };
+E1000000000000000000000D = {isa = PBXTargetDependency; target = DA7A0000000000000000002C; targetProxy = E1000000000000000000000E; };
 /* End PBXTargetDependency section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -440,6 +506,9 @@
 		C20000000000000000000009 = {isa = XCBuildConfiguration; baseConfigurationReference = C20000000000000000000030; buildSettings = { }; name = "Debug"; };
 		C2000000000000000000000A = {isa = XCBuildConfiguration; baseConfigurationReference = C20000000000000000000030; buildSettings = { }; name = "Release"; };
 		C2000000000000000000000B = {isa = XCBuildConfiguration; baseConfigurationReference = C20000000000000000000030; buildSettings = { }; name = "Offline Debug"; };
+E1000000000000000000000A = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = personal.ritm.workouts.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; TEST_TARGET_NAME = Ritm; }; name = "Debug"; };
+E1000000000000000000000B = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = personal.ritm.workouts.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; TEST_TARGET_NAME = Ritm; }; name = "Release"; };
+E1000000000000000000000C = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = personal.ritm.workouts.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; TEST_TARGET_NAME = Ritm; }; name = "Offline Debug"; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -465,6 +534,7 @@
 		};
 		C1000000000000000000000C = {isa = XCConfigurationList; buildConfigurations = (C10000000000000000000009, C1000000000000000000000A, C1000000000000000000000B,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		C2000000000000000000000C = {isa = XCConfigurationList; buildConfigurations = (C20000000000000000000009, C2000000000000000000000A, C2000000000000000000000B,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+E10000000000000000000009 = {isa = XCConfigurationList; buildConfigurations = (E1000000000000000000000A, E1000000000000000000000B, E1000000000000000000000C,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
 	rootObject = DA7A0000000000000000002E /* Project object */;
