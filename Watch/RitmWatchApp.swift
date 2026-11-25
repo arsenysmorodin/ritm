@@ -241,11 +241,19 @@ private struct WatchHome: View {
                 }
                 if let message = workout.message { Text(message).font(.footnote).foregroundStyle(.secondary) }
             }
-            .padding(.horizontal, 5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .containerRelativeFrame(.horizontal) { width, _ in
+                max(0, width - Theme.Space.sm * 2)
+            }
+            .padding(.horizontal, Theme.Space.sm)
         }
-        .background(Theme.background)
+        .contentMargins(.horizontal, 0, for: .scrollContent)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background { Theme.background.ignoresSafeArea() }
+        .ignoresSafeArea(.container, edges: .horizontal)
         .foregroundStyle(Theme.primary)
         .tint(Theme.accent)
+        .modifier(WatchFlexibleButtons())
         .navigationTitle("Ритм")
         .disabled(workout.busy)
         .overlay { if workout.busy { ProgressView("Загрузка…") } }
@@ -303,6 +311,16 @@ private struct WatchHome: View {
             }.privacySensitive()
         } else {
             Label("Ждём первый замер", systemImage: "heart").font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct WatchFlexibleButtons: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(watchOS 26.0, *) {
+            content.buttonSizing(.flexible)
+        } else {
+            content
         }
     }
 }
