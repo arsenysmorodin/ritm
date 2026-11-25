@@ -4,7 +4,7 @@ final class HealthOSUITests: XCTestCase {
     private var app: XCUIApplication!
     override func setUp() { super.setUp(); continueAfterFailure = false }
 
-    private func launch(fixtures: Bool = false, dark: Bool = false, large: Bool = false, compact: Bool = false, reversal: Bool = false) {
+    private func launch(fixtures: Bool = false, dark: Bool = false, large: Bool = false, compact: Bool = false, reversal: Bool = false, workout: Bool = false) {
         app = XCUIApplication()
         app.launchArguments = ["--ritm-ui-testing", "--ritm-ui-session", UUID().uuidString, "--ritm-ui-accent", "lime", "-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU"]
         app.launchArguments += ["-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXL" : "UICTContentSizeCategoryL"]
@@ -13,6 +13,7 @@ final class HealthOSUITests: XCTestCase {
         if large { app.launchArguments.append("--ritm-ui-large-text") }
         if compact { app.launchArguments.append("--ritm-ui-compact") }
         if reversal { app.launchArguments.append("--ritm-ui-reversal") }
+        if workout { app.launchArguments.append("--ritm-ui-workout") }
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Сегодня"].waitForExistence(timeout: 20))
     }
@@ -56,6 +57,78 @@ final class HealthOSUITests: XCTestCase {
         field.typeText(text)
         let typed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", text), object: field)
         XCTAssertEqual(XCTWaiter.wait(for: [typed], timeout: 8), .completed)
+    }
+
+    func testWorkoutPulseDeleteSetAndUndo() throws {
+        launch(dark: true, workout: true)
+        app.tabBars.buttons["Тренировки"].tap()
+        let resume = app.buttons["Продолжить тренировку"]
+        reveal(resume); resume.tap()
+        XCTAssertTrue(app.staticTexts["120"].waitForExistence(timeout: 10))
+        let rows = app.buttons.matching(identifier: "workout.set.edit")
+        reveal(rows.firstMatch)
+        XCTAssertEqual(rows.count, 3)
+        capture("workout-live-pulse")
+        rows.firstMatch.tap()
+        let delete = app.buttons["workout.set.delete"]
+        reveal(delete); delete.tap()
+        let undo = app.buttons["workout.set.undo"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 5))
+        XCTAssertEqual(rows.count, 2)
+        capture("workout-deleted-set")
+        undo.tap()
+        XCTAssertEqual(rows.count, 3)
+        XCTAssertFalse(undo.exists)
+        try audit()
+    }
+
+    func testProactiveNotificationSettingsPersist() {
+        launch()
+        app.buttons["today.settings"].tap()
+        let settings = app.buttons["Привычки и уведомления"]
+        reveal(settings); settings.tap()
+        let morning = app.switches["notifications.morning"]
+        reveal(morning); XCTAssertEqual(morning.value as? String, "0")
+        morning.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        capture("notifications-after-morning-toggle")
+        XCTAssertEqual(morning.value as? String, "1", app.debugDescription)
+        let time = app.staticTexts["Время обзора"]
+        reveal(time)
+        let evening = app.switches["notifications.checkIn"]
+        reveal(evening); evening.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        let changes = app.switches["notifications.changes"]
+        reveal(changes); changes.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        capture("proactive-notifications")
+        addUIInterruptionMonitor(withDescription: "Уведомления") { alert in
+            for label in ["Разрешить", "Allow"] {
+                let allow = alert.buttons[label]
+                if allow.exists { allow.tap(); return true }
+            }
+            return false
+        }
+        app.buttons["Сохранить"].tap()
+        let systemAlert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+        if systemAlert.waitForExistence(timeout: 3) {
+            for label in ["Разрешить", "Allow"] where systemAlert.buttons[label].exists { systemAlert.buttons[label].tap(); break }
+        }
+        if app.buttons["Понятно"].exists { app.buttons["Понятно"].tap() }
+        if app.buttons["Отмена"].exists { app.buttons["Отмена"].tap() }
+        XCTAssertTrue(settings.waitForExistence(timeout: 8)); settings.tap()
+        reveal(morning); XCTAssertEqual(morning.value as? String, "1")
+        reveal(evening); XCTAssertEqual(evening.value as? String, "1")
+        reveal(changes); XCTAssertEqual(changes.value as? String, "1")
+    }
+
+    func testWorkoutControlsWithAccessibilityText() {
+        launch(dark: true, large: true, workout: true)
+        app.tabBars.buttons["Тренировки"].tap()
+        let resume = app.buttons["Продолжить тренировку"]
+        reveal(resume); resume.tap()
+        let mark = app.buttons["Отметить подход"]
+        XCTAssertTrue(mark.waitForExistence(timeout: 10))
+        XCTAssertTrue(mark.isHittable)
+        XCTAssertTrue(app.staticTexts["120"].exists)
+        capture("workout-accessibility-text")
     }
 
     func testWaterQuickAddUndoAndCustomVolume() {

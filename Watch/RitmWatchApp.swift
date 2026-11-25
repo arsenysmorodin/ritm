@@ -2,6 +2,7 @@ import HealthKit
 import Observation
 import SwiftUI
 import WatchKit
+import UserNotifications
 
 @MainActor @Observable final class WatchWorkout: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBuilderDelegate {
     let link = WatchLink()
@@ -14,6 +15,7 @@ import WatchKit
     private(set) var busy = false
     private(set) var marking = false
     var message: String?
+    var onContextChange: (() -> Void)?
 
     struct Context: Codable {
         let id: UUID
@@ -75,6 +77,7 @@ import WatchKit
         session.delegate = self
         builder?.delegate = self
         UserDefaults.standard.set(try? JSONEncoder().encode(info), forKey: contextKey)
+        onContextChange?()
     }
 
     func recover() async {
@@ -100,6 +103,31 @@ import WatchKit
             WKInterfaceDevice.current().play(confirmed ? .success : .failure)
             if !confirmed { self?.message = "Подход не отмечен. Проверьте связь с iPhone." }
         }
+    }
+
+    func removeNext(_ snapshot: WatchSnapshot) {
+        guard let item = snapshot.next, !marking, link.reachable else { return }
+        marking = true
+        link.send(.removeSet(workout: snapshot.workoutID, exercise: item.exerciseID, set: item.setID)) { [weak self] ok in
+            self?.marking = false
+            WKInterfaceDevice.current().play(ok ? .success : .failure)
+            if !ok { self?.message = "Подход не удалён. Обновите связь с iPhone." }
+        }
+    }
+
+    func startFromPhone() async {
+        // A phone launch must never silently create a second, independent workout.
+        for _ in 0..<12 where !link.active || !link.reachable {
+            try? await Task.sleep(for: .milliseconds(500))
+        }
+        guard link.reachable else { message = "Откройте «Ритм» на iPhone и повторите запуск пульса."; return }
+        let accepted = await withCheckedContinuation { continuation in
+            link.send(.requestHealth) { continuation.resume(returning: $0) }
+        }
+        guard accepted, let snapshot = link.companion, snapshot.healthEnabled else {
+            message = "Начните тренировку на iPhone и подключите «Здоровье»."; return
+        }
+        await start(WorkoutKind(rawValue: snapshot.kind) ?? .strength, phone: snapshot)
     }
 
     func finishLinked() {
@@ -138,6 +166,7 @@ import WatchKit
         context = nil
         points = []
         UserDefaults.standard.removeObject(forKey: contextKey)
+        onContextChange?()
     }
 
     private func enqueue(_ event: WatchEvent) {
@@ -193,8 +222,36 @@ import WatchKit
     }
 }
 
-@MainActor final class WatchApplicationDelegate: NSObject, WKApplicationDelegate {
+@MainActor final class WatchApplicationDelegate: NSObject, WKApplicationDelegate, UNUserNotificationCenterDelegate {
     let workout = WatchWorkout()
+    let rest = WatchRestAlert()
+    private(set) var health: WatchHealthStore!
+
+    override init() {
+        super.init()
+        health = WatchHealthStore(link: workout.link)
+        workout.link.onWorkoutSnapshot = { [weak self] snapshot in
+            guard let self else { return }
+            if let context = workout.context, context.linked,
+               snapshot?.workoutID != context.id || snapshot?.healthEnabled == false { workout.finishLinked() }
+            rest.update(snapshot, hasWorkoutSession: workout.context != nil)
+        }
+        workout.onContextChange = { [weak self] in
+            guard let self else { return }
+            rest.update(workout.link.companion, hasWorkoutSession: workout.context != nil)
+        }
+        UNUserNotificationCenter.current().delegate = self
+    }
+
+    func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
+        Task { await workout.startFromPhone() }
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        await rest.present(notification)
+        return []
+    }
 
     func handleActiveWorkoutRecovery() {
         Task { await workout.recover() }
@@ -205,19 +262,20 @@ import WatchKit
     @WKApplicationDelegateAdaptor(WatchApplicationDelegate.self) private var delegate
 
     var body: some Scene {
-        WindowGroup { WatchHome(workout: delegate.workout) }
+        WindowGroup { WatchDashboard(workout: delegate.workout, health: delegate.health, rest: delegate.rest) }
     }
 }
 
-private struct WatchHome: View {
+struct WatchTraining: View {
     let workout: WatchWorkout
+    let rest: WatchRestAlert
     @State private var kind: WorkoutKind = .strength
     @State private var confirmSave = false
     @State private var chooseKind = false
+    @State private var confirmRemove = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+        WatchPage {
                 if let snapshot = workout.link.companion, workout.context?.linked != false {
                     phoneWorkout(snapshot)
                 } else if let activity = workout.context {
@@ -240,20 +298,7 @@ private struct WatchHome: View {
                     Text("Чтобы отмечать подходы с часов, начните программу на iPhone.").font(.footnote).foregroundStyle(.secondary)
                 }
                 if let message = workout.message { Text(message).font(.footnote).foregroundStyle(.secondary) }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .containerRelativeFrame(.horizontal) { width, _ in
-                max(0, width - Theme.Space.sm * 2)
-            }
-            .padding(.horizontal, Theme.Space.sm)
         }
-        .contentMargins(.horizontal, 0, for: .scrollContent)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { Theme.background.ignoresSafeArea() }
-        .ignoresSafeArea(.container, edges: .horizontal)
-        .foregroundStyle(Theme.primary)
-        .tint(Theme.accent)
-        .modifier(WatchFlexibleButtons())
         .navigationTitle("Ритм")
         .disabled(workout.busy)
         .overlay { if workout.busy { ProgressView("Загрузка…") } }
@@ -270,11 +315,17 @@ private struct WatchHome: View {
                 Button(choice.title) { kind = choice }
             }
         }
+        .confirmationDialog("Удалить следующий подход?", isPresented: $confirmRemove, titleVisibility: .visible) {
+            Button("Удалить", role: .destructive) {
+                if let snapshot = workout.link.companion { workout.removeNext(snapshot) }
+            }
+        } message: { Text("Основной подход удаляется вместе с его дропами. Вернуть его можно на iPhone.") }
     }
 
     @ViewBuilder private func phoneWorkout(_ value: WatchSnapshot) -> some View {
         heading(value.title)
         Text("\(value.completed) / \(value.total) подходов").font(.headline.monospacedDigit())
+        livePulse(value.lastPulse)
         if let rest = value.restUntil {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 if rest > context.date {
@@ -285,17 +336,38 @@ private struct WatchHome: View {
         }
         if let next = value.next {
             Text(next.label).font(.footnote).foregroundStyle(.secondary)
-            Button("Отметить подход", systemImage: "checkmark.circle") { workout.mark(value) }
+            Button("Отметить подход", systemImage: "checkmark.circle") {
+                workout.mark(value)
+                Task { await rest.requestPermission() }
+            }
                 .disabled(workout.marking || !workout.link.reachable)
+            Button(next.isDrop == true ? "Удалить этап" : "Удалить подход", systemImage: "trash", role: .destructive) { confirmRemove = true }
+                .font(.caption).disabled(workout.marking || !workout.link.reachable)
         }
         if !workout.link.reachable { Text("Ожидаем связь с iPhone").font(.footnote).foregroundStyle(.secondary) }
         if workout.context?.linked == true {
-            pulse
             Button("Остановить пульс", systemImage: "stop.circle") { workout.finishLinked() }
         } else if value.healthEnabled {
             Button("Измерять пульс", systemImage: "heart.fill") {
                 Task { await workout.start(WorkoutKind(rawValue: value.kind) ?? .strength, phone: value) }
             }.tint(Theme.accent)
+        }
+    }
+
+    private func livePulse(_ phone: PulsePoint?) -> some View {
+        let point = [workout.points.last, phone].compactMap { $0 }.max { $0.date < $1.date }
+        return TimelineView(.periodic(from: .now, by: 5)) { context in
+            VStack(alignment: .leading, spacing: 3) {
+                Label(point.map { "\($0.bpm) уд/мин" } ?? "— уд/мин", systemImage: "heart.fill")
+                    .font(.title3.bold().monospacedDigit()).foregroundStyle(Theme.reference)
+                if let point {
+                    Text(context.date.timeIntervalSince(point.date) < 30 ? "Сейчас" : "Замер в \(point.date.formatted(.dateTime.hour().minute()))")
+                        .font(.caption2).foregroundStyle(Theme.secondary)
+                } else {
+                    Text(workout.context != nil ? "Ждём первый замер" : "Включите измерение на часах")
+                        .font(.caption2).foregroundStyle(Theme.secondary)
+                }
+            }.privacySensitive().accessibilityElement(children: .combine)
         }
     }
 
@@ -315,7 +387,7 @@ private struct WatchHome: View {
     }
 }
 
-private struct WatchFlexibleButtons: ViewModifier {
+struct WatchFlexibleButtons: ViewModifier {
     func body(content: Content) -> some View {
         if #available(watchOS 26.0, *) {
             content.buttonSizing(.flexible)

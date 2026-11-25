@@ -275,10 +275,16 @@ struct SupplementEditor: View {
 
 struct HealthOSSettingsView: View {
     let store: HealthOSStore
+    @Environment(JournalStore.self) private var journal
     @Environment(\.dismiss) private var dismiss
     @State private var draft: HealthOSSettings
+    @State private var proactive: ProactiveNotificationSettings
     @State private var notificationIssue: String?
-    init(store: HealthOSStore) { self.store = store; _draft = State(initialValue: store.settings) }
+    init(store: HealthOSStore) {
+        self.store = store
+        _draft = State(initialValue: store.settings)
+        _proactive = State(initialValue: store.settings.proactive)
+    }
     var body: some View {
         NavigationStack {
             Form {
@@ -296,17 +302,50 @@ struct HealthOSSettingsView: View {
                     Toggle("О добавках по расписанию", isOn: $draft.supplementReminders)
                     Text("Уведомления включаются после сохранения настроек. Напоминания об уже отмеченных приёмах отменяются при следующем обновлении приложения.").font(.caption).foregroundStyle(Theme.secondary)
                 }
+                Section {
+                    Toggle("Утренний обзор", isOn: $proactive.morning)
+                        .accessibilityIdentifier("notifications.morning")
+                    if proactive.morning {
+                        DatePicker("Время обзора", selection: Binding(get: { minuteDate(proactive.morningMinute) },
+                            set: { proactive.morningMinute = minuteValue($0) }), displayedComponents: .hourAndMinute)
+                            .accessibilityIdentifier("notifications.morning.time")
+                    }
+                    Toggle("Вечерняя отметка самочувствия", isOn: $proactive.checkIn)
+                        .accessibilityIdentifier("notifications.checkIn")
+                    if proactive.checkIn {
+                        DatePicker("Время отметки", selection: Binding(get: { minuteDate(proactive.checkInMinute) },
+                            set: { proactive.checkInMinute = minuteValue($0) }), displayedComponents: .hourAndMinute)
+                            .accessibilityIdentifier("notifications.checkIn.time")
+                    }
+                    Toggle("Изменения ночных показателей", isOn: $proactive.healthChanges)
+                        .accessibilityIdentifier("notifications.changes")
+                } header: { Text("Проактивные уведомления") } footer: {
+                    Text("Вечернее напоминание отменяется после отметки на iPhone или её получения с часов. Сигнал об изменениях — не чаще раза в день, когда несколько показателей отличаются от личного диапазона и есть не менее 14 дней истории того же источника. Диагнозы и медицинские рекомендации не формируются.")
+                }
+                Section {
+                    Toggle("Тихие часы", isOn: $proactive.quietEnabled)
+                    if proactive.quietEnabled {
+                        DatePicker("С", selection: Binding(get: { minuteDate(proactive.quietStart) },
+                            set: { proactive.quietStart = minuteValue($0) }), displayedComponents: .hourAndMinute)
+                        DatePicker("До", selection: Binding(get: { minuteDate(proactive.quietEnd) },
+                            set: { proactive.quietEnd = minuteValue($0) }), displayedComponents: .hourAndMinute)
+                    }
+                } header: { Text("Когда не беспокоить") } footer: {
+                    Text("Тихие часы относятся к проактивным уведомлениям. Утренний и вечерний сигналы внутри этого интервала переносятся на его окончание. Вода, добавки и таймер отдыха следуют собственному расписанию. Числа показателей здоровья в уведомления не включаются.")
+                }
                 if let notificationIssue { Text(notificationIssue).foregroundStyle(Theme.warning) }
                 if let error = store.error { Text(error).foregroundStyle(Theme.warning) }
             }
-            .navigationTitle("Вода и напоминания").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Привычки и уведомления").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Сохранить") {
+                        draft.proactive = proactive
                         if store.saveSettings(draft) {
                             Task {
-                                notificationIssue = await HealthOSNotifications.update(store, requestPermission: true)
+                                notificationIssue = await HealthOSNotifications.update(store, requestPermission: true,
+                                    healthEnabled: journal.journal.healthEnabled)
                                 if notificationIssue == nil { dismiss() }
                             }
                         }

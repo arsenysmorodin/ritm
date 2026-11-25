@@ -184,6 +184,7 @@ struct ActiveWorkout: Identifiable, Codable, Equatable {
     var startedAt: Date
     var exercises: [LoggedExercise]
     var restUntil: Date? = nil
+    var restOriginSetID: UUID?
     var pulse: [PulsePoint]?
     var blocks: [ExerciseBlock]?
     var notes = ""

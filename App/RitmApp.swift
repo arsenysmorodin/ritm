@@ -8,6 +8,7 @@ import SwiftUI
     @State private var store: JournalStore
     @State private var health: HealthConnection
     @State private var watch: WatchLink
+    @State private var companion: PhoneCompanion
     @AppStorage(RitmAppearance.key) private var appearance = RitmAppearance.system
     @AppStorage(RitmAccent.appKey) private var appAccent = RitmAccent.lime
 
@@ -15,17 +16,19 @@ import SwiftUI
         let journal = HealthOSUITestSupport.journal()
         let link = WatchLink()
         let health = HealthConnection()
+        let companion = PhoneCompanion(journal: journal, health: health, link: link,
+            daily: HealthOSUITestSupport.healthOS(), bridge: HealthOSBridge())
         health.startWidgetUpdates(journal)
-        link.onEvent = { event in journal.receiveWatch(event) }
-        link.publish(journal.watchSnapshot)
         _store = State(initialValue: journal)
         _health = State(initialValue: health)
         _watch = State(initialValue: link)
+        _companion = State(initialValue: companion)
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView(store: store, health: health, watch: watch)
+            RootView(store: store, health: health, watch: watch, daily: companion.daily,
+                     healthOSBridge: companion.bridge, publishCompanion: { companion.publish() })
                 .modifier(HealthOSUITestDisplay())
                 .environment(\.ritmAccent, appAccent.color)
                 .preferredColorScheme(appearance.scheme)
@@ -63,8 +66,9 @@ struct RootView: View {
     @State private var trainingPath: [TrainingDestination] = []
     @State private var metricPath: [HealthMeasure] = []
     @State private var today = Date.now
-    @State private var daily = HealthOSUITestSupport.healthOS()
-    @State private var healthOSBridge = HealthOSBridge()
+    @State private var daily: HealthOSStore
+    @State private var healthOSBridge: HealthOSBridge
+    private let publishCompanion: (() -> Void)?
     @State private var quickEntry: HealthEventKind?
     @State private var showSupplements = false
     @State private var showDayTimeline = false
@@ -72,6 +76,15 @@ struct RootView: View {
 
     private enum Tab: Hashable { case today, health, dynamics, training }
     private enum TrainingDestination: Hashable { case programs, history }
+
+    @MainActor init(store: JournalStore, health: HealthConnection, watch: WatchLink? = nil,
+                    daily: HealthOSStore? = nil, healthOSBridge: HealthOSBridge? = nil,
+                    publishCompanion: (() -> Void)? = nil) {
+        self.store = store; self.health = health; self.watch = watch
+        self.publishCompanion = publishCompanion
+        _daily = State(initialValue: daily ?? HealthOSUITestSupport.healthOS())
+        _healthOSBridge = State(initialValue: healthOSBridge ?? HealthOSBridge())
+    }
 
     var body: some View {
         Group {
@@ -146,16 +159,17 @@ struct RootView: View {
             #endif
             if phase == .active {
                 daily.reload()
-                daily.onChange = { [weak osStore = daily, weak osBridge = healthOSBridge, weak journal = store] in
+                if watch == nil { daily.onChange = { [weak osStore = daily, weak osBridge = healthOSBridge, weak journal = store] in
                     guard let osStore else { return }
                     Task {
                         if journal?.journal.healthEnabled == true { await osBridge?.syncIntake(osStore) }
-                        _ = await HealthOSNotifications.update(osStore)
+                        _ = await HealthOSNotifications.update(osStore, healthEnabled: journal?.journal.healthEnabled == true)
                     }
-                }
+                } }
                 Task {
                     await healthOSBridge.refresh(store, daily: daily)
-                    _ = await HealthOSNotifications.update(daily)
+                    publishCompanion?()
+                    _ = await HealthOSNotifications.update(daily, healthEnabled: store.journal.healthEnabled)
                 }
                 today = .now
                 store.publishWidgets()
@@ -178,11 +192,14 @@ struct RootView: View {
             restTimer.openHealthRoute = nil; tab = .today
             if route == "water" { quickEntry = .water }
             if route == "supplements" { showSupplements = true }
+            if route == "check-in" { quickEntry = .checkIn }
+            if route == "recovery" { tab = .health; healthPath = [.overview] }
         }
         #endif
         .task {
             for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged) {
                 today = .now
+                daily.reload(); publishCompanion?()
                 if scene == .active {
                     if tab == .health { await health.refresh(store) } else { await health.refreshWidgetData(store) }
                 }
@@ -243,6 +260,7 @@ struct RootView: View {
         .onChange(of: store.journal.healthEnabled) { old, enabled in
             if old && !enabled { healthOSBridge.disconnect(daily) }
             if enabled { Task { await healthOSBridge.refresh(store, daily: daily, force: true) } }
+            publishCompanion?()
         }
         .environment(daily)
         .environment(store)

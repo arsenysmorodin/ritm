@@ -5,7 +5,8 @@ import WidgetKit
 #endif
 
 @MainActor @Observable final class HealthOSStore {
-    private let database: HealthDatabase?
+    private var database: HealthDatabase?
+    private let requestedURL: URL?
     private(set) var archive = HealthOSArchive()
     private(set) var isReadable = false
     var error: String?
@@ -17,8 +18,7 @@ import WidgetKit
         "RitmExperiment", "RitmSleepGoal", "RitmLastMeal"]
 
     init(url: URL? = nil) {
-        do { database = try HealthDatabase(url: try url ?? HealthDatabase.sharedURL()) }
-        catch { database = nil; self.error = "Не удалось открыть Health OS. \(error.localizedDescription)" }
+        requestedURL = url
         reload()
     }
 
@@ -29,6 +29,10 @@ import WidgetKit
     var experiments: [HealthExperiment] { archive.experiments.sorted { $0.startsAt > $1.startsAt } }
 
     func reload() {
+        if database == nil {
+            do { database = try HealthDatabase(url: try requestedURL ?? HealthDatabase.sharedURL()) }
+            catch { isReadable = false; self.error = "Не удалось открыть Health OS. \(error.localizedDescription)"; return }
+        }
         guard let database else { return }
         do { archive = try database.archive(); isReadable = true }
         catch { isReadable = false; self.error = "Не удалось прочитать Health OS. Исходная база сохранена. \(error.localizedDescription)" }
@@ -81,7 +85,7 @@ import WidgetKit
     @discardableResult func saveSettings(_ settings: HealthOSSettings) -> Bool {
         guard (100...10000).contains(settings.waterGoal), !settings.waterPortions.isEmpty,
               settings.waterPortions.allSatisfy({ (10...5000).contains($0) }),
-              settings.waterReminderTimes.allSatisfy({ (0..<1440).contains($0) }) else {
+              settings.waterReminderTimes.allSatisfy({ (0..<1440).contains($0) }), settings.proactive.isValid else {
             error = "Проверьте цель, порции воды и время напоминаний."; return false
         }
         var next = archive; next.settings = settings

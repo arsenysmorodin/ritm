@@ -15,6 +15,7 @@ import WidgetKit
     var issue: String?
     private(set) var exportIssue: (id: UUID, message: String)?
     private var refreshID = UUID()
+    @ObservationIgnored var onDataUpdate: (() async -> Void)?
     private(set) var widgetSnapshot = WidgetStorage.load(HealthWidgetSnapshot.self, file: HealthWidgetSnapshot.file)
     private(set) var widgetError: String?
     private(set) var recoverySnapshot = WidgetStorage.load(RecoverySnapshot.self, file: RecoverySnapshot.file)
@@ -39,6 +40,19 @@ import WidgetKit
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
     private(set) var canWrite = false
     var availabilityMessage: String { "На этом устройстве Apple «Здоровье» недоступно." }
+
+    func startWatchPulse(_ kind: WorkoutKind) async -> String? {
+        guard isAvailable else { return availabilityMessage }
+        let configuration = HKWorkoutConfiguration()
+        configuration.locationType = .indoor
+        switch kind {
+        case .strength: configuration.activityType = .traditionalStrengthTraining
+        case .mobility: configuration.activityType = .flexibility
+        case .intervals: configuration.activityType = .highIntensityIntervalTraining
+        }
+        do { try await store.startWatchApp(toHandle: configuration); return nil }
+        catch { return "Не удалось открыть «Ритм» на Apple Watch. Откройте приложение на часах и нажмите «Измерять пульс»." }
+    }
 
     func connect(_ journal: JournalStore) async {
         guard isAvailable, !isBusy else { return }
@@ -85,6 +99,9 @@ import WidgetKit
         activityReader.start { [weak self, weak journal] in
             if let journal { await self?.refreshActivity(journal) }
         }
+        widgetReader.enableBackgroundUpdates()
+        recoveryReader.enableBackgroundUpdates()
+        activityReader.enableBackgroundUpdates()
     }
 
     func refreshWidgetData(_ journal: JournalStore) async {
@@ -122,6 +139,7 @@ import WidgetKit
                     reloadActivityWidgets()
                 }
                 activityError = nil
+                await onDataUpdate?()
             } catch {
                 guard activityRequest?.id == id, journal.journal.healthEnabled else { return }
                 activityError = "Не удалось обновить движение и вес. Потяните экран вниз для повтора."
@@ -155,6 +173,7 @@ import WidgetKit
                 reloadHealthWidgets()
             }
             widgetSnapshot = snapshot
+            await onDataUpdate?()
         } catch {
             guard widgetRequest?.id == id, journal.journal.healthEnabled else { return }
             widgetError = "Данные для виджетов пока не обновились. Повторите с разблокированным iPhone."
@@ -194,6 +213,7 @@ import WidgetKit
                 reloadRecoveryWidgets()
             }
             recoveryError = nil
+            await onDataUpdate?()
         } catch {
             guard recoveryRequest?.id == id, journal.journal.healthEnabled else { return }
             recoveryError = "Не удалось обновить сон и ночные показатели. Проверьте доступ и потяните экран вниз для повтора."
@@ -318,6 +338,7 @@ import WidgetKit
     func refresh(_ journal: JournalStore) async {}
     func refreshWeight(_ journal: JournalStore) async {}
     func recentPulse(from start: Date, through end: Date) async -> [PulsePoint] { [] }
+    func startWatchPulse(_ kind: WorkoutKind) async -> String? { availabilityMessage }
     func requestExport(_ id: UUID, from journal: JournalStore) async {}
     func exportPending(_ journal: JournalStore, first: UUID? = nil) async {}
     func startWidgetUpdates(_ journal: JournalStore) {}

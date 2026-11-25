@@ -14,5 +14,5 @@
     <key>WKApplication</key><true/>
     <key>WKCompanionAppBundleIdentifier</key><string>$(RITM_BUNDLE_ID)</string>
     <key>WKRunsIndependentlyOfCompanionApp</key><true/>
-    <key>WKBackgroundModes</key><array><string>workout-processing</string></array>
+    <key>WKBackgroundModes</key><array><string>workout-processing</string><string>audio</string></array>
 </dict></plist>

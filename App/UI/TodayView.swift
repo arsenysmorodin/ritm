@@ -182,7 +182,7 @@ struct AppearanceSettings: View {
                 }
                 Section("Данные") {
                     NavigationLink("Резервная копия") { BackupView(store: store) }
-                    Button("Вода и напоминания") { showWaterSettings = true }
+                    Button("Привычки и уведомления") { showWaterSettings = true }
                     if store.journal.healthEnabled {
                         Button(daily.settings.writeIntakeToHealth ? "Обновить доступ к записи воды и кофеина" : "Сохранять воду и кофеин в «Здоровье»") {
                             Task { await bridge.authorize(store, daily: daily, write: true) }

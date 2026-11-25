@@ -186,6 +186,12 @@ struct HealthOSSettings: Codable, Equatable {
     var supplementReminders = false
     var writeIntakeToHealth = false
     var importedThrough: Date?
+    var proactiveNotifications: ProactiveNotificationSettings?
+
+    var proactive: ProactiveNotificationSettings {
+        get { proactiveNotifications ?? ProactiveNotificationSettings() }
+        set { proactiveNotifications = newValue }
+    }
 }
 
 struct HealthExperiment: Codable, Equatable, Identifiable {
@@ -224,6 +230,7 @@ struct HealthOSArchive: Codable, Equatable {
         guard version == 1, (100...10000).contains(settings.waterGoal), !settings.waterPortions.isEmpty,
               settings.waterPortions.allSatisfy({ (10...5000).contains($0) }),
               settings.waterReminderTimes.allSatisfy({ (0..<1440).contains($0) }),
+              settings.proactive.isValid,
               supplements.allSatisfy({ !$0.times.isEmpty && $0.times.allSatisfy({ (0..<1440).contains($0) }) && $0.servings > 0 && $0.servings.isFinite }),
               events.allSatisfy({ $0.amount.map({ $0.isFinite && $0 >= 0 }) ?? true }),
               experiments.allSatisfy({ (2...28).contains($0.blockDays) && (0..<$0.blockDays).contains($0.adaptationDays) && $0.blocks.count == 4 }),

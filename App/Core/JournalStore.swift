@@ -47,6 +47,7 @@ struct JournalBackup: Codable {
 }
 
 @MainActor @Observable final class JournalStore {
+    var removedWorkoutSets: RemovedWorkoutSets?
     private let url: URL
     private(set) var journal: Journal
     private(set) var isReadable = true
@@ -171,8 +172,10 @@ struct JournalBackup: Codable {
             let rest = draft.restAfter(setID: setID)
             if draft.exercises[e].sets[s].complete {
                 draft.restUntil = rest > 0 && draft.marked < draft.total ? date.addingTimeInterval(Double(rest)) : nil
+                draft.restOriginSetID = draft.restUntil == nil ? nil : setID
             } else {
                 draft.restUntil = nil
+                draft.restOriginSetID = nil
             }
         }
     }
@@ -233,15 +236,22 @@ struct JournalBackup: Codable {
             let kind = step.set.dropStage.map { " · Дроп \($0)" } ?? ""
             let weight = step.set.weight > 0 ? " · \(step.set.weight.formatted(.number.precision(.fractionLength(0...2)))) кг" : ""
             return WatchSnapshot.NextSet(exerciseID: step.exerciseID, setID: step.id,
-                                         label: "\(step.name) · \(step.set.value) \(step.unit.short)\(weight)\(kind)")
+                                         label: "\(step.name) · \(step.set.value) \(step.unit.short)\(weight)\(kind)", isDrop: step.set.dropStage != nil)
         }
         return WatchSnapshot(workoutID: draft.id, title: draft.name, kind: draft.kind.rawValue,
                              startedAt: draft.startedAt, completed: draft.marked, total: draft.total,
-                             next: next, restUntil: draft.restUntil, healthEnabled: journal.healthEnabled)
+                             next: next, restUntil: draft.restUntil, healthEnabled: journal.healthEnabled,
+                             lastPulse: journal.healthEnabled ? draft.pulse?.last : nil)
     }
 
     func receiveWatch(_ event: WatchEvent) -> Bool {
         switch event {
+        case .health, .requestHealth: return false
+        case let .removeSet(workoutID, exerciseID, setID):
+            guard let draft = journal.activeWorkout, draft.id == workoutID else { return false }
+            if !draft.exercises.contains(where: { $0.sets.contains(where: { $0.id == setID }) }) { return true }
+            guard draft.nextStep?.id == setID else { return false }
+            return removeWorkoutSet(exerciseID: exerciseID, setID: setID) != nil
         case let .mark(workoutID, exerciseID, setID):
             guard let draft = journal.activeWorkout, draft.id == workoutID,
                   let exercise = draft.exercises.first(where: { $0.id == exerciseID }),

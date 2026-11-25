@@ -16,6 +16,8 @@ struct SessionView: View {
     @State private var guide: ExercisePlan?
     @State private var notes = ""
     @State private var markFeedback = 0
+    @State private var requestingPulse = false
+    @State private var pulseIssue: String?
 
     var body: some View {
         NavigationStack {
@@ -71,7 +73,9 @@ struct SessionView: View {
                     }
                 }
                 .sheet(item: $editing) { picked in
-                    SetEditor(selection: picked) { value, weight in
+                    SetEditor(selection: picked, remove: {
+                        _ = store.removeWorkoutSet(exerciseID: picked.exerciseID, setID: picked.id)
+                    }) { value, weight in
                         store.updateWorkout { current in
                             guard let e = current.exercises.firstIndex(where: { $0.id == picked.exerciseID }),
                                   let s = current.exercises[e].sets.firstIndex(where: { $0.id == picked.id }) else { return }
@@ -90,6 +94,9 @@ struct SessionView: View {
                     Button("Сохранить тренировку") { finish() }
                     Button("Продолжить", role: .cancel) {}
                 } message: { Text("В историю попадут только отмеченные подходы.") }
+                .alert("Пульс с Apple Watch", isPresented: Binding(get: { pulseIssue != nil }, set: { if !$0 { pulseIssue = nil } })) {
+                    Button("Понятно", role: .cancel) { pulseIssue = nil }
+                } message: { Text(pulseIssue ?? "") }
                 .alert("Удалить упражнение?", isPresented: Binding(get: { remove != nil }, set: { if !$0 { remove = nil } }), presenting: remove) { exercise in
                     Button("Удалить", role: .destructive) {
                         store.updateWorkout { $0.exercises.removeAll { $0.id == exercise.id }; $0.restUntil = nil }
@@ -171,7 +178,7 @@ struct SessionView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(exercise.plan.name).font(Theme.sectionTitle).accessibilityAddTraits(.isHeader)
-                        Text("\(exercise.plan.sets) × \(exercise.plan.target) \(exercise.plan.unit.short)")
+                        Text("\(Set(exercise.steps.map(\.round)).count) × \(exercise.plan.target) \(exercise.plan.unit.short)")
                             .font(.caption).foregroundStyle(Theme.secondary)
                     }
                     Spacer()
@@ -179,6 +186,10 @@ struct SessionView: View {
                 }
                 ForEach(exercise.steps) { step in
                     stepRow(step, grouped: false, next: next == step.id)
+                }
+                if exercise.sets.isEmpty {
+                    Button("Добавить подход", systemImage: "plus") { appendSet(exercise.id) }
+                        .frame(minHeight: Theme.touch)
                 }
             }
         }
@@ -193,7 +204,11 @@ struct SessionView: View {
                     Spacer()
                     Menu {
                         ForEach(section.exercises) { exercise in
-                            Button(exercise.plan.name) { guide = exercise.plan }
+                            Menu(exercise.plan.name) {
+                                Button("Мышцы и техника", systemImage: "figure.strengthtraining.traditional") { guide = exercise.plan }
+                                Button("Добавить подход", systemImage: "plus") { appendSet(exercise.id) }
+                                Button("Удалить упражнение", systemImage: "trash", role: .destructive) { remove = exercise }
+                            }
                         }
                     } label: {
                         Image(systemName: "figure.strengthtraining.traditional").frame(width: Theme.touch, height: Theme.touch)
@@ -212,10 +227,7 @@ struct SessionView: View {
         Menu {
             Button("Мышцы и техника", systemImage: "figure.strengthtraining.traditional") { guide = exercise.plan }
             Button("Добавить подход", systemImage: "plus") {
-                store.updateWorkout { draft in
-                    guard let index = draft.exercises.firstIndex(where: { $0.id == exercise.id }) else { return }
-                    draft.exercises[index].appendRound()
-                }
+                appendSet(exercise.id)
             }
             Button("Удалить упражнение", systemImage: "trash", role: .destructive) { remove = exercise }
         } label: {
@@ -250,6 +262,14 @@ struct SessionView: View {
             RoundedRectangle(cornerRadius: Theme.Radius.control)
                 .strokeBorder(next ? accent : Theme.border, lineWidth: next ? 2 : 1)
                 .allowsHitTesting(false)
+        }
+        .contextMenu {
+            Button(step.set.dropStage == nil ? "Удалить подход с дропами" : "Удалить этап", systemImage: "trash", role: .destructive) {
+                _ = store.removeWorkoutSet(exerciseID: step.exerciseID, setID: step.id)
+            }
+        }
+        .accessibilityAction(named: "Удалить подход") {
+            _ = store.removeWorkoutSet(exerciseID: step.exerciseID, setID: step.id)
         }
     }
 
@@ -288,6 +308,7 @@ struct SessionView: View {
             }
             .buttonStyle(PressStyle())
             .accessibilityLabel("Изменить: \(stepName), \(step.name), \(summary)")
+            .accessibilityIdentifier("workout.set.edit")
             HStack(spacing: 6) {
                 if repetitions {
                     RepetitionControl(value: set.value, context: "\(step.name), \(stepName)") { change in
@@ -346,6 +367,16 @@ struct SessionView: View {
 
     private func controls(_ draft: ActiveWorkout, next: WorkoutStep?) -> some View {
         ActionDock {
+            if let removed = store.removedWorkoutSets, removed.workoutID == draft.id {
+                HStack {
+                    Label("Подход удалён", systemImage: "trash").font(.caption).foregroundStyle(Theme.secondary)
+                    Spacer(minLength: 8)
+                    Button("Вернуть") { _ = store.restoreWorkoutSets(removed) }
+                        .font(.subheadline.weight(.semibold)).frame(minHeight: Theme.touch)
+                        .accessibilityIdentifier("workout.set.undo")
+                }
+            }
+            if store.journal.healthEnabled { livePulse(draft) }
             if let rest = draft.restUntil {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let seconds = draft.secondsLeft(at: context.date)
@@ -366,12 +397,61 @@ struct SessionView: View {
         }
     }
 
+    private func appendSet(_ exerciseID: UUID) {
+        store.updateWorkout { draft in
+            guard let index = draft.exercises.firstIndex(where: { $0.id == exerciseID }) else { return }
+            draft.exercises[index].appendRound()
+        }
+    }
+
+    private func livePulse(_ draft: ActiveWorkout) -> some View {
+        TimelineView(.periodic(from: .now, by: 5)) { context in
+            let last = draft.pulse?.last
+            let live = last.map { context.date.timeIntervalSince($0.date) < 30 } ?? false
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: Theme.Space.sm))
+                : AnyLayout(HStackLayout(spacing: Theme.Space.sm))
+            layout {
+                HStack(spacing: Theme.Space.sm) {
+                    Image(systemName: "heart.fill").foregroundStyle(Theme.reference).accessibilityHidden(true)
+                    Text(last.map { String($0.bpm) } ?? "—").font(.title3.bold().monospacedDigit())
+                        .contentTransition(.numericText())
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("уд/мин").font(.caption)
+                        Text(live ? "Сейчас" : last.map { "Замер в \($0.date.formatted(.dateTime.hour().minute()))" } ?? "Ждём замер")
+                            .font(.caption2).foregroundStyle(Theme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if !live {
+                    Button {
+                        requestingPulse = true
+                        Task {
+                            pulseIssue = await health.startWatchPulse(draft.kind)
+                            requestingPulse = false
+                        }
+                    } label: {
+                        if requestingPulse { ProgressView() } else { Image(systemName: "applewatch.radiowaves.left.and.right") }
+                    }
+                    .buttonStyle(.bordered).frame(minWidth: Theme.touch, minHeight: Theme.touch)
+                    .disabled(requestingPulse).accessibilityLabel("Включить пульс на Apple Watch")
+                }
+            }
+            .privacySensitive().accessibilityElement(children: .contain)
+            .accessibilityIdentifier("workout.pulse")
+        }
+    }
+
     @ViewBuilder private func workoutActions(_ draft: ActiveWorkout, next: WorkoutStep?) -> some View {
         if let next {
-            Text("Следующий: \(next.name), \(next.title.lowercased())")
-                .font(.subheadline).foregroundStyle(Theme.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(next.name).font(.subheadline)
+                Text(next.title).font(.caption)
+            }
+                .foregroundStyle(Theme.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityHidden(true)
             ActionButton(title: next.set.dropStage == nil ? "Отметить подход" : "Отметить этап", icon: "checkmark") {
                 guard store.journal.activeWorkout?.nextStep?.id == next.id else { return }
@@ -398,7 +478,7 @@ struct SessionView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
-            Button("Пропустить отдых") { store.updateWorkout { $0.restUntil = nil } }
+            Button("Пропустить отдых") { store.updateWorkout { $0.restUntil = nil; $0.restOriginSetID = nil } }
                 .font(.subheadline.weight(.semibold))
                 .buttonStyle(.bordered)
                 .controlSize(.large)
@@ -479,13 +559,15 @@ private struct SetSuggestionButton: View {
 
 private struct SetEditor: View {
     let selection: SetSelection
+    let remove: (() -> Void)?
     let save: (Int, Double) -> Void
     @State private var value: String
     @State private var weight: String
     @Environment(\.dismiss) private var dismiss
 
-    init(selection: SetSelection, save: @escaping (Int, Double) -> Void) {
+    init(selection: SetSelection, remove: (() -> Void)? = nil, save: @escaping (Int, Double) -> Void) {
         self.selection = selection
+        self.remove = remove
         self.save = save
         _value = State(initialValue: String(selection.set.value))
         _weight = State(initialValue: selection.set.weight > 0 ? Format.weight(selection.set.weight) : "")
@@ -511,6 +593,15 @@ private struct SetEditor: View {
                                       matches: Int(value.trimmed) == previous.value && validWeight(weight) == previous.weight) {
                         value = String(previous.value)
                         weight = previous.weight > 0 ? Format.weight(previous.weight) : ""
+                    }
+                }
+                if let remove {
+                    Section {
+                        Button(selection.set.dropStage == nil ? "Удалить подход" : "Удалить этап", systemImage: "trash", role: .destructive) {
+                            remove(); dismiss()
+                        }.accessibilityIdentifier("workout.set.delete")
+                    } footer: {
+                        Text(selection.set.dropStage == nil ? "Основной подход удаляется вместе с его дропами. После удаления доступна кнопка «Вернуть»." : "Удаляется только этот этап. Основной подход сохранится.")
                     }
                 }
             }

@@ -28,6 +28,14 @@ import SwiftUI
         if arguments.contains("--ritm-widget-fixtures") {
             _ = store.change { $0.nutritionGoals = NutritionGoals(amounts: [.fiber: 30, .protein: 120]) }
         }
+        if arguments.contains("--ritm-ui-workout"), store.journal.activeWorkout == nil {
+            let routine = Routine(name: "Проверка тренировки", exercises: [ExercisePlan(name: "Приседания", sets: 3, target: 12)])
+            _ = store.start(routine)
+            _ = store.change {
+                $0.healthEnabled = true
+                $0.activeWorkout?.pulse = [PulsePoint(date: .now, bpm: 120)]
+            }
+        }
         #endif
         return store
     }
